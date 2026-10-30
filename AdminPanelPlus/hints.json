@@ -1,0 +1,475 @@
+{
+  "_provider": {
+    "enable": {
+      "typical": true,
+      "ru": {
+        "t": "Включить источник",
+        "d": "Участвует ли источник в выдаче."
+      },
+      "en": {
+        "t": "Enable source",
+        "d": "Whether the source takes part in the results."
+      }
+    },
+    "host": {
+      "typical": true,
+      "ru": {
+        "t": "Адрес источника",
+        "d": "Текущее зеркало или API-хост. Меняйте, если сайт переехал на другой адрес."
+      },
+      "en": {
+        "t": "Source address",
+        "d": "Current mirror or API host. Change it if the site moved to another address."
+      }
+    },
+    "token": {
+      "typical": true,
+      "ru": {
+        "t": "Токен",
+        "d": "Ваш собственный API-токен или ключ партнёра. Не публикуйте его."
+      },
+      "en": {
+        "t": "Token",
+        "d": "Your own API token or partner key. Do not publish it."
+      }
+    },
+    "priority": {
+      "typical": true,
+      "ru": {
+        "t": "Приоритет",
+        "d": "Позиция источника в списке: чем меньше число, тем выше источник."
+      },
+      "en": {
+        "t": "Priority",
+        "d": "Position of the source in the list: the smaller the number, the higher the source."
+      }
+    },
+    "useproxy": {
+      "typical": true,
+      "ru": {
+        "t": "Через прокси",
+        "d": "Отправлять запросы к источнику через настроенный прокси."
+      },
+      "en": {
+        "t": "Use proxy",
+        "d": "Send requests to the source through the configured proxy."
+      }
+    },
+    "streamproxy": {
+      "typical": true,
+      "ru": {
+        "t": "Проксировать видео",
+        "d": "Пропускать ссылки на видео через Lampac."
+      },
+      "en": {
+        "t": "Proxy the video",
+        "d": "Pass video links through Lampac."
+      }
+    }
+  },
+  "lowMemoryMode": {
+    "restart": true,
+    "ru": {
+      "t": "Режим низкой памяти",
+      "d": "Экономит около 140 МБ памяти: уменьшает буферные пулы, отключает часть второстепенных кэшей и чаще собирает мусор. Подходит для VPS и контейнеров с жёстким лимитом памяти. При очень большой нагрузке возможно небольшое снижение пропускной способности."
+    },
+    "en": {
+      "t": "Low memory mode",
+      "d": "Saves about 140 MB of memory: shrinks buffer pools, disables some secondary caches and runs garbage collection more often. Suits VPS and containers with a hard memory limit. Under very high load throughput may drop slightly."
+    }
+  },
+  "serilog": {
+    "ru": {
+      "t": "Лог в файл",
+      "d": "Структурное логирование в папку logs/ с ротацией 14 дней."
+    },
+    "en": {
+      "t": "Log to file",
+      "d": "Structured logging to the logs/ folder with 14-day rotation."
+    }
+  },
+  "imagelibrary": {
+    "ru": {
+      "t": "Библиотека изображений",
+      "d": "Чем обрабатываются постеры и картинки. Варианты: NetVips, ImageMagick, none."
+    },
+    "en": {
+      "t": "Image library",
+      "d": "What processes posters and pictures. Options: NetVips, ImageMagick, none."
+    }
+  },
+  "listen": {
+    "ru": {
+      "t": "HTTP-сервер",
+      "d": "Адрес, порт, схема и таймауты сетевого слоя. Изменение IP, порта, Unix socket или TLS вступает в силу только после перезапуска."
+    },
+    "en": {
+      "t": "HTTP server",
+      "d": "Address, port, scheme and timeouts of the network layer. Changes to IP, port, Unix socket or TLS take effect only after a restart."
+    }
+  },
+  "listen.ip": {
+    "restart": true,
+    "ru": {
+      "t": "Сетевой интерфейс",
+      "d": "На каких адресах сервер принимает подключения: \"any\" — на всех, \"broadcast\" или конкретный IP, например 127.0.0.1 (только эта машина).",
+      "w": "Неверное значение может закрыть доступ к серверу и к этой панели. Нужен перезапуск."
+    },
+    "en": {
+      "t": "Network interface",
+      "d": "Which addresses the server listens on: \"any\" for all, \"broadcast\" or a specific IP such as 127.0.0.1 (this machine only).",
+      "w": "A wrong value can cut off access to the server and to this panel. A restart is required."
+    }
+  },
+  "listen.port": {
+    "restart": true,
+    "ru": {
+      "t": "Порт сервера",
+      "d": "TCP-порт, на котором работает Lampac. В Docker внешний порт задаётся отдельно, в параметре ports файла compose.",
+      "w": "После смены порта прежний адрес перестанет открываться. В Docker также обновите ports в compose. Нужен перезапуск."
+    },
+    "en": {
+      "t": "Server port",
+      "d": "TCP port Lampac listens on. In Docker the published port is set separately, in the ports option of the compose file.",
+      "w": "After changing the port the old address will stop working. In Docker also update ports in compose. A restart is required."
+    }
+  },
+  "listen.scheme": {
+    "ru": {
+      "t": "Схема в ссылках",
+      "d": "http или https в ссылках, которые Lampac вписывает в ответы. TLS это не включает. Если пусто, берётся схема запроса."
+    },
+    "en": {
+      "t": "Scheme in links",
+      "d": "http or https in the links Lampac puts into responses. This does not enable TLS. If empty, the scheme of the request is used."
+    }
+  },
+  "listen.host": {
+    "ru": {
+      "t": "Адрес в ссылках",
+      "d": "Хост (без http://), который Lampac вписывает в ссылки в ответах. Если пусто, берётся адрес из запроса."
+    },
+    "en": {
+      "t": "Host in links",
+      "d": "Host (without http://) that Lampac puts into links in responses. If empty, the address from the request is used."
+    }
+  },
+  "listen.version": {
+    "ru": {
+      "t": "Версия в заголовке",
+      "d": "Добавлять заголовок с версией сервера."
+    },
+    "en": {
+      "t": "Version header",
+      "d": "Add a header with the server version."
+    }
+  },
+  "listen.ResponseCancelAfter": {
+    "ru": {
+      "t": "Таймаут ответа",
+      "d": "Сколько секунд сервер ждёт ответа, прежде чем прервать запрос."
+    },
+    "en": {
+      "t": "Response timeout",
+      "d": "How many seconds the server waits for a response before cancelling the request."
+    }
+  },
+  "BaseModule": {
+    "ru": {
+      "t": "Загрузка модулей",
+      "d": "Какие модули загружаются при старте. Изменения вступают в силу только после перезапуска."
+    },
+    "en": {
+      "t": "Module loading",
+      "d": "Which modules are loaded at startup. Changes take effect only after a restart."
+    }
+  },
+  "BaseModule.SkipModules": {
+    "restart": true,
+    "ru": {
+      "t": "Не загружать модули",
+      "d": "Имена модулей, которые не загружаются, даже если код есть в образе. Сравнивается с именем модуля и с родительской группой, например OnlineAnime."
+    },
+    "en": {
+      "t": "Modules to skip",
+      "d": "Names of modules that are not loaded even if the code is in the image. Matched against the module name and its parent group, for example OnlineAnime."
+    }
+  },
+  "BaseModule.LoadModules": {
+    "restart": true,
+    "ru": {
+      "t": "Загружать только эти модули",
+      "d": "Белый список: имя модуля, группа (например OnlineUKR) или регулярное выражение (например LME.*). По умолчанию \".*\" — все."
+    },
+    "en": {
+      "t": "Load only these modules",
+      "d": "Allow list: a module name, a group (for example OnlineUKR) or a regular expression (for example LME.*). \".*\" means all."
+    }
+  },
+  "accsdb": {
+    "ru": {
+      "t": "Доступ по аккаунтам",
+      "d": "Ограничивает доступ клиентов к API по логинам с датой окончания. Клиент получает токен, который подставляется в адрес плагина. Вход в эту панель не затрагивает: он идёт по паролю из файла passwd."
+    },
+    "en": {
+      "t": "Account access",
+      "d": "Restricts client access to the API by logins with an expiry date. A client gets a token that is placed in the plugin URL. It does not affect signing in to this panel, which uses the password from the passwd file."
+    }
+  },
+  "accsdb.enable": {
+    "ru": {
+      "t": "Включить проверку аккаунтов",
+      "d": "Если включено, доступ получают только пользователи из списка, пока не истёк их срок.",
+      "w": "Устройства, которых нет в списке пользователей, перестанут получать данные. Сначала добавьте пользователей на вкладке users."
+    },
+    "en": {
+      "t": "Enable account check",
+      "d": "When on, only users from the list get access, until their expiry date.",
+      "w": "Devices that are not in the user list will stop receiving data. Add users on the users tab first."
+    }
+  },
+  "WAF": {
+    "ru": {
+      "t": "Брандмауэр (WAF)",
+      "d": "Фильтрует входящие запросы по стране, IP-адресу и частоте обращений. Включите, если сервер доступен из интернета."
+    },
+    "en": {
+      "t": "Firewall (WAF)",
+      "d": "Filters incoming requests by country, IP address and request rate. Turn it on if the server is reachable from the internet."
+    }
+  },
+  "WAF.enable": {
+    "ru": {
+      "t": "Включить WAF",
+      "d": "Включает фильтрацию запросов.",
+      "w": "После включения проверьте whiteIps и countryAllow, чтобы не заблокировать самого себя."
+    },
+    "en": {
+      "t": "Enable WAF",
+      "d": "Turns request filtering on.",
+      "w": "After enabling, check whiteIps and countryAllow so that you do not block yourself."
+    }
+  },
+  "WAF.countryAllow": {
+    "ru": {
+      "t": "Разрешённые страны",
+      "d": "Коды стран по ISO 3166-1 alpha-2, например RU, UA, BY. Пустой список — без ограничений по странам.",
+      "w": "Если вашей страны нет в непустом списке, доступ для вас будет закрыт."
+    },
+    "en": {
+      "t": "Allowed countries",
+      "d": "Country codes by ISO 3166-1 alpha-2, for example RU, UA, BY. An empty list means no country restrictions.",
+      "w": "If your country is not in a non-empty list, access will be closed for you."
+    }
+  },
+  "WAF.whiteIps": {
+    "ru": {
+      "t": "Всегда пропускать",
+      "d": "IP-адреса и подсети (CIDR, например 192.168.1.0/24), которые проходят в обход всех ограничений."
+    },
+    "en": {
+      "t": "Always allow",
+      "d": "IP addresses and subnets (CIDR, for example 192.168.1.0/24) that bypass all restrictions."
+    }
+  },
+  "WAF.bruteForceProtection": {
+    "ru": {
+      "t": "Защита от подбора",
+      "d": "Автоматически банит при множестве ошибок аутентификации."
+    },
+    "en": {
+      "t": "Brute-force protection",
+      "d": "Automatically bans after many authentication failures."
+    }
+  },
+  "WAF.limit_map": {
+    "ru": {
+      "t": "Лимиты запросов",
+      "d": "Список правил: регулярное выражение pattern для адреса и map.limit запросов за map.second секунд. Модули добавляют свои правила при загрузке."
+    },
+    "en": {
+      "t": "Request limits",
+      "d": "A list of rules: a regular expression pattern for the path and map.limit requests per map.second seconds. Modules add their own rules when loaded."
+    }
+  },
+  "cache": {
+    "ru": {
+      "t": "Кэш",
+      "d": "Настройки кэша. Параметр extend определяет, как долго записи держатся в оперативной памяти для быстрого доступа."
+    },
+    "en": {
+      "t": "Cache",
+      "d": "Cache settings. The extend option sets how long entries are kept in RAM for fast access."
+    }
+  },
+  "cache.extend": {
+    "ru": {
+      "t": "Время в памяти (секунды)",
+      "d": "Сколько секунд запись кэша остаётся в оперативной памяти до обращения к диску. По умолчанию 2700 (45 минут). При включённом режиме низкой памяти (lowMemoryMode) значение ограничивается диапазоном 15–60 секунд."
+    },
+    "en": {
+      "t": "Time in memory (seconds)",
+      "d": "How many seconds a cache entry stays in RAM before the disk is used. Default is 2700 (45 minutes). With low memory mode (lowMemoryMode) enabled the value is limited to the 15–60 second range."
+    }
+  },
+  "GC": {
+    "ru": {
+      "t": "Сборщик мусора .NET",
+      "d": "Управление памятью процесса. Особенно полезно вместе с режимом низкой памяти (lowMemoryMode)."
+    },
+    "en": {
+      "t": "Garbage collector (.NET)",
+      "d": "Memory management of the process. Most useful together with low memory mode (lowMemoryMode)."
+    }
+  },
+  "GC.Concurrent": {
+    "ru": {
+      "t": "Фоновые сборки",
+      "d": "Выключено — только сборки с остановкой процесса (stop-the-world). Включено — фоновые (concurrent) сборки."
+    },
+    "en": {
+      "t": "Background collections",
+      "d": "Off: only stop-the-world collections. On: background (concurrent) collections."
+    }
+  },
+  "GC.ConserveMemory": {
+    "ru": {
+      "t": "Экономия памяти",
+      "d": "Чем больше значение (до 9), тем сильнее экономия памяти, мельче поколения и чаще сборки."
+    },
+    "en": {
+      "t": "Memory conservation",
+      "d": "The higher the value (up to 9), the stronger the saving, the smaller the generations and the more frequent the collections."
+    }
+  },
+  "GC.HighMemoryPercent": {
+    "ru": {
+      "t": "Порог нехватки памяти",
+      "d": "Процент занятой памяти, после которого GC считает систему под давлением. Чем ниже значение, тем раньше и агрессивнее сборки."
+    },
+    "en": {
+      "t": "Memory pressure threshold",
+      "d": "Percentage of used memory after which the GC considers the system under pressure. The lower the value, the earlier and more aggressive the collections."
+    }
+  },
+  "GC.RetainVM": {
+    "ru": {
+      "t": "Удерживать виртуальную память",
+      "d": "Выключено — GC старается возвращать освобождённую виртуальную память системе. Включено — сохраняет адресное пространство, чтобы быстрее переиспользовать."
+    },
+    "en": {
+      "t": "Retain virtual memory",
+      "d": "Off: the GC tries to return freed virtual memory to the OS. On: it keeps the address space to reuse it faster."
+    }
+  },
+  "chromium": {
+    "ru": {
+      "t": "Браузер Chromium",
+      "d": "Автоматизация браузера нужна для обхода JS-защит на стороне провайдеров."
+    },
+    "en": {
+      "t": "Chromium browser",
+      "d": "Browser automation is used to get around JS protections on the provider side."
+    }
+  },
+  "chromium.enable": {
+    "ru": {
+      "t": "Включить пул браузеров",
+      "d": "Запускать браузер для провайдеров, которым он нужен."
+    },
+    "en": {
+      "t": "Enable browser pool",
+      "d": "Run the browser for providers that need it."
+    }
+  },
+  "chromium.executablePath": {
+    "ru": {
+      "t": "Путь к браузеру",
+      "d": "Путь к бинарному файлу, если автоопределение не подошло. В Docker-образе зависимости уже включены."
+    },
+    "en": {
+      "t": "Browser path",
+      "d": "Path to the binary if auto-detection did not work. In the Docker image the dependencies are already included."
+    }
+  },
+  "chromium.Args": {
+    "ru": {
+      "t": "Флаги браузера",
+      "d": "Дополнительные флаги командной строки браузера."
+    },
+    "en": {
+      "t": "Browser flags",
+      "d": "Extra command-line flags for the browser."
+    }
+  },
+  "firefox": {
+    "ru": {
+      "t": "Браузер Firefox",
+      "d": "Автоматизация браузера нужна для обхода JS-защит на стороне провайдеров."
+    },
+    "en": {
+      "t": "Firefox browser",
+      "d": "Browser automation is used to get around JS protections on the provider side."
+    }
+  },
+  "firefox.enable": {
+    "ru": {
+      "t": "Включить пул браузеров",
+      "d": "Запускать браузер для провайдеров, которым он нужен."
+    },
+    "en": {
+      "t": "Enable browser pool",
+      "d": "Run the browser for providers that need it."
+    }
+  },
+  "firefox.executablePath": {
+    "ru": {
+      "t": "Путь к браузеру",
+      "d": "Путь к бинарному файлу, если автоопределение не подошло."
+    },
+    "en": {
+      "t": "Browser path",
+      "d": "Path to the binary if auto-detection did not work."
+    }
+  },
+  "firefox.Args": {
+    "ru": {
+      "t": "Флаги браузера",
+      "d": "Дополнительные флаги командной строки браузера."
+    },
+    "en": {
+      "t": "Browser flags",
+      "d": "Extra command-line flags for the browser."
+    }
+  },
+  "rch": {
+    "ru": {
+      "t": "RCH (Remote Client Hub)",
+      "d": "WebSocket-реле для клиентов за NAT: устройства подключаются к серверу без проброса портов."
+    },
+    "en": {
+      "t": "RCH (Remote Client Hub)",
+      "d": "A WebSocket relay for clients behind NAT: devices connect to the server without port forwarding."
+    }
+  },
+  "rch.enable": {
+    "ru": {
+      "t": "Включить RCH",
+      "d": "Разрешает клиентам за NAT подключаться через WebSocket-реле."
+    },
+    "en": {
+      "t": "Enable RCH",
+      "d": "Lets clients behind NAT connect through the WebSocket relay."
+    }
+  },
+  "kit": {
+    "ru": {
+      "t": "Kit (шифрование)",
+      "d": "Шифрование потоков через CryptoKit."
+    },
+    "en": {
+      "t": "Kit (encryption)",
+      "d": "Stream encryption through CryptoKit."
+    }
+  }
+}
