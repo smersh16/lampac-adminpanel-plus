@@ -1878,6 +1878,17 @@
     #confirmDialog .dialog.dialog-wide { max-width: 640px; }
     #confirmMsg:empty { display: none; }
     #confirmDiff:not(:empty) + .dialog-actions { margin-top: var(--sp-4); }
+    .uf-hint { font-size: var(--text-xs); color: var(--text-muted); line-height: 1.5; margin-top: 4px; }
+    .uf-exp { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .uf-exp .uf-expires { flex: 1 1 190px; min-width: 0; }
+    .uf-exp .uf-exp-date { flex: 0 0 auto; width: auto; }
+    .uf-quick { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
+    .uf-exp-status { font-size: var(--text-xs); font-weight: 600; margin-left: auto; }
+    .uf-exp-status.ok { color: var(--ok); }
+    .uf-exp-status.bad { color: var(--err); }
+    .uf-exp-status.warn { color: var(--warn); }
+    .users-list-item.bad .users-list-id { color: var(--err); }
+    .users-list-search { margin: 0 var(--sp-3) var(--sp-2); width: calc(100% - 2 * var(--sp-3)); }
     .pv-bar { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; margin-bottom: var(--sp-3); }
     .pv-bar .search-bar { flex: 1 1 240px; margin: 0; }
     .pv-seg { display: inline-flex; border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; }
@@ -2319,6 +2330,7 @@
               <div class="users-split">
                 <aside class="users-list-aside" aria-label="Список учётных записей">
                   <div class="users-list-h">Пользователи</div>
+                  <input type="search" class="pv-in users-list-search" id="usersSearch" placeholder="Поиск по id или комментарию" autocomplete="off" spellcheck="false">
                   <div id="usersListMount" class="users-list-mount" aria-live="polite"></div>
                 </aside>
                 <div class="users-detail-aside">
@@ -2367,6 +2379,8 @@
 
       let usersEditorView = 'form';
       let usersFormData = [];
+      let usersBaseText = '[]';
+      let usersFilter = '';
       let usersSelectedIndex = -1;
 
       let groupsMeta = [];
@@ -2561,6 +2575,7 @@
           throw new Error('users-json ' + ru.status);
         }
         const txt = await ru.text();
+        usersBaseText = txt;
         const ta = $('#usersRaw');
         if (ta) ta.value = txt;
         if (usersEditorView === 'form')
@@ -2578,10 +2593,12 @@
           IsPasswd: false,
           expires: usersDefaultExpires(),
           group: 0,
+          bypass_accsdb: false,
           ban: false,
           ban_msg: '',
           comment: '',
-          params: {}
+          params: {},
+          _x: {}
         };
       }
 
@@ -2599,6 +2616,10 @@
         let params = {};
         if (u.params != null && typeof u.params === 'object' && !Array.isArray(u.params))
           params = JSON.parse(JSON.stringify(u.params));
+        // поля, которых нет в форме, сохраняем как есть, чтобы не терять данные при сохранении
+        const USERS_KNOWN = ['id', 'ids', 'IsPasswd', 'expires', 'group', 'bypass_accsdb', 'ban', 'ban_msg', 'comment', 'params', '_x'];
+        const _x = (u._x && typeof u._x === 'object' && !Array.isArray(u._x)) ? JSON.parse(JSON.stringify(u._x)) : {};
+        Object.keys(u).forEach(k => { if (USERS_KNOWN.indexOf(k) < 0) _x[k] = JSON.parse(JSON.stringify(u[k])); });
         return {
           id: u.id != null ? String(u.id) : '',
           ids,
@@ -2608,7 +2629,9 @@
           ban: !!u.ban,
           ban_msg: u.ban_msg != null ? String(u.ban_msg) : '',
           comment: u.comment != null ? String(u.comment) : '',
-          params
+          bypass_accsdb: !!u.bypass_accsdb,
+          params,
+          _x
         };
       }
 
@@ -2636,8 +2659,18 @@
           '  </div>' +
           '  <div class="simple-row"><label>id <span style="color:var(--err)">*</span></label><div><input type="text" class="uf-id" autocomplete="off" spellcheck="false" placeholder="основной UID или логин" /></div></div>' +
           '  <div class="simple-row"><label>ids</label><div><textarea class="uf-ids simple-json" spellcheck="false" placeholder="дополнительные UID — по одному в строку или через запятую"></textarea></div></div>' +
-          '  <div class="simple-row"><label>expires</label><div><input type="text" class="uf-expires" autocomplete="off" spellcheck="false" placeholder="ISO 8601" /></div></div>' +
-          '  <div class="simple-row"><label>group</label><div><input type="number" class="uf-group" step="1" /></div></div>' +
+          '  <div class="simple-row"><label>expires</label><div>' +
+          '    <div class="uf-exp"><input type="text" class="uf-expires" autocomplete="off" spellcheck="false" placeholder="2027-12-31T23:59:59" />' +
+          '    <input type="date" class="pv-in uf-exp-date" title="' + tr('Выбрать дату', 'Pick a date') + '" /></div>' +
+          '    <div class="uf-quick"><button type="button" class="btn btn-ghost btn-sm" data-add="30d">' + tr('+30 дней', '+30 days') + '</button>' +
+          '    <button type="button" class="btn btn-ghost btn-sm" data-add="1y">' + tr('+1 год', '+1 year') + '</button>' +
+          '    <button type="button" class="btn btn-ghost btn-sm" data-add="forever">' + tr('Бессрочно', 'No expiry') + '</button>' +
+          '    <span class="uf-exp-status"></span></div>' +
+          '    <div class="uf-hint">' + tr('После этой даты доступ закрывается. «+30 дней» отсчитывается от большей из дат: сегодня или текущего срока.', 'Access is closed after this date. “+30 days” counts from the later of today and the current expiry.') + '</div>' +
+          '  </div></div>' +
+          '  <div class="simple-row"><label>group</label><div><input type="number" class="uf-group" step="1" />' +
+          '    <div class="uf-hint">' + tr('Источник с параметром group = N открывается пользователям с group ≥ N. 0 — без группы.', 'A source with group = N is available to users with group ≥ N. 0 means no group.') + '</div></div></div>' +
+          '  <div class="simple-row"><label>bypass_accsdb</label><div class="simple-check"><input type="checkbox" class="uf-bypass" /> <span style="font-size:var(--text-xs);color:var(--text-muted)">' + tr('не проверять доступ: бан и срок не действуют', 'skip access checks: ban and expiry are ignored') + '</span></div></div>' +
           '  <div class="simple-row"><label>ban</label><div class="simple-check"><input type="checkbox" class="uf-ban" /> <span style="font-size:var(--text-xs);color:var(--text-muted)">заблокирован</span></div></div>' +
           '  <div class="simple-row"><label>ban_msg</label><div><input type="text" class="uf-ban_msg" autocomplete="off" spellcheck="false" placeholder="текст при бане" /></div></div>' +
           '  <div class="simple-row"><label>comment</label><div><input type="text" class="uf-comment" autocomplete="off" spellcheck="false" /></div></div>' +
@@ -2652,12 +2685,14 @@
         card.querySelector('.uf-ids').value = (u.ids || []).join('\n');
         card.querySelector('.uf-expires').value = u.expires || '';
         card.querySelector('.uf-group').value = String(u.group != null ? u.group : 0);
+        card.querySelector('.uf-bypass').checked = !!u.bypass_accsdb;
         card.querySelector('.uf-ban').checked = !!u.ban;
         card.querySelector('.uf-ban_msg').value = u.ban_msg || '';
         card.querySelector('.uf-comment').value = u.comment || '';
         card.querySelector('.uf-ispasswd').checked = !!u.IsPasswd;
         const pta = card.querySelector('.uf-params');
         pta.value = u.params && Object.keys(u.params).length ? JSON.stringify(u.params, null, 2) : '{}';
+        usersBindExpires(card);
       }
 
       function usersReadDetailCardToObject(card) {
@@ -2686,6 +2721,8 @@
           IsPasswd: !!card.querySelector('.uf-ispasswd')?.checked,
           expires,
           group: Number.isNaN(g) ? 0 : g,
+          bypass_accsdb: !!card.querySelector('.uf-bypass')?.checked,
+          _x: (usersFormData[usersSelectedIndex] || {})._x,
           ban: !!card.querySelector('.uf-ban')?.checked,
           ban_msg: ban_msg || null,
           comment,
@@ -2702,12 +2739,63 @@
         usersFormData[usersSelectedIndex] = usersReadDetailCardToObject(card);
       }
 
+      function usersExpInfo(exp) {
+        const t = Date.parse(exp);
+        if (isNaN(t)) return { text: tr('дата не распознана', 'date not recognised'), cls: 'warn', days: null };
+        if (new Date(t).getFullYear() >= 2090) return { text: tr('бессрочно', 'no expiry'), cls: 'ok', days: null, forever: true, t: t };
+        const days = Math.ceil((t - Date.now()) / 86400000);
+        if (t < Date.now()) return { text: tr('истёк ', 'expired ') + Math.abs(Math.floor((Date.now() - t) / 86400000)) + tr(' дн. назад', ' d ago'), cls: 'bad', days: days, expired: true, t: t };
+        return { text: tr('осталось ', 'left ') + days + tr(' дн.', ' d'), cls: 'ok', days: days, t: t };
+      }
+
+      function usersFmtDate(d) {
+        const z = n => String(n).padStart(2, '0');
+        return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + 'T23:59:59';
+      }
+
+      function usersBindExpires(card) {
+        const txt = card.querySelector('.uf-expires'), dt = card.querySelector('.uf-exp-date'), st = card.querySelector('.uf-exp-status');
+        const sync = () => {
+          const i = usersExpInfo(txt.value.trim() || usersDefaultExpires());
+          st.textContent = i.text;
+          st.className = 'uf-exp-status ' + i.cls;
+          const m = /^(\d{4}-\d{2}-\d{2})/.exec(txt.value);
+          dt.value = m ? m[1] : '';
+        };
+        txt.addEventListener('input', sync);
+        dt.addEventListener('change', () => { if (dt.value) { txt.value = dt.value + 'T23:59:59'; sync(); } });
+        card.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => {
+          if (b.dataset.add === 'forever') txt.value = usersDefaultExpires();
+          else {
+            const cur = Date.parse(txt.value), now = Date.now();
+            const start = new Date(isNaN(cur) || cur < now || new Date(cur).getFullYear() >= 2090 ? now : cur);
+            if (b.dataset.add === '30d') start.setDate(start.getDate() + 30);
+            else start.setFullYear(start.getFullYear() + 1);
+            txt.value = usersFmtDate(start);
+          }
+          sync();
+        }));
+        sync();
+      }
+
       function usersListSubtitle(u) {
-        const parts = ['group ' + (u.group != null ? u.group : 0)];
-        if (u.ban) parts.push('ban');
-        const ex = (u.expires || '').toString().trim();
-        if (ex) parts.push(ex.length > 24 ? ex.slice(0, 24) + '…' : ex);
+        const parts = [tr('группа ', 'group ') + (u.group != null ? u.group : 0)];
+        if (u.ban) parts.push(tr('бан', 'banned'));
+        const i = usersExpInfo((u.expires || '').toString());
+        if (i.forever) parts.push(tr('бессрочно', 'no expiry'));
+        else if (i.expired) parts.push(tr('истёк', 'expired'));
+        else if (i.t) {
+          const d = new Date(i.t), z = n => String(n).padStart(2, '0');
+          parts.push(tr('до ', 'until ') + z(d.getDate()) + '.' + z(d.getMonth() + 1) + '.' + d.getFullYear());
+        }
+        if (u.bypass_accsdb) parts.push('bypass');
         return parts.join(' · ');
+      }
+
+      function usersMatches(u) {
+        const q = usersFilter.trim().toLowerCase();
+        if (!q) return true;
+        return [u.id, (u.ids || []).join(' '), u.comment].join(' ').toLowerCase().indexOf(q) >= 0;
       }
 
       function usersBindDetailRemove(card) {
@@ -2742,11 +2830,14 @@
         if (usersSelectedIndex < 0 || usersSelectedIndex >= usersFormData.length)
           usersSelectedIndex = 0;
 
+        let shown = 0;
         usersFormData.forEach((raw, i) => {
           const u = usersNormalizeFromJson(raw);
+          if (!usersMatches(u)) return;
+          shown++;
           const b = document.createElement('button');
           b.type = 'button';
-          b.className = 'users-list-item' + (i === usersSelectedIndex ? ' active' : '');
+          b.className = 'users-list-item' + (i === usersSelectedIndex ? ' active' : '') + (u.ban || usersExpInfo(u.expires).expired ? ' bad' : '');
           b.dataset.userIndex = String(i);
           const idSpan = document.createElement('span');
           idSpan.className = 'users-list-id';
@@ -2774,6 +2865,7 @@
           listMount.appendChild(b);
         });
 
+        if (shown === 0) listMount.innerHTML = '<p class="users-list-empty">' + tr('Ничего не найдено.', 'Nothing found.') + '</p>';
         if (emptyEl) emptyEl.hidden = true;
 
         const wrap = document.createElement('div');
@@ -2806,10 +2898,12 @@
               ban: !!u.ban,
               ban_msg: u.ban_msg && String(u.ban_msg).trim() ? String(u.ban_msg).trim() : null
             };
+            if (u.bypass_accsdb) obj.bypass_accsdb = true;
             if (u.comment && String(u.comment).trim())
               obj.comment = String(u.comment).trim();
             if (u.params && typeof u.params === 'object' && !Array.isArray(u.params) && Object.keys(u.params).length)
               obj.params = JSON.parse(JSON.stringify(u.params));
+            Object.keys(u._x || {}).forEach(k => { if (!(k in obj)) obj[k] = u._x[k]; });
             out.push(obj);
           });
           if (skipped.length)
@@ -3791,7 +3885,12 @@
           showToast('Корень должен быть JSON-массивом', 'err');
           return;
         }
-        const ok = await showConfirm('Сохранить users.json?', 'Файл users.json в рабочей директории будет перезаписан.');
+        const ud = usersDiff(parsed);
+        const ok = await showConfirm(tr('Сохранить users.json?', 'Save users.json?'),
+          tr('Изменения подхватываются примерно за секунду, без перезапуска.', 'Changes are picked up within about a second, no restart needed.')
+          + (ud.needRestart ? '\n' + tr('Но удаление пользователя и смена bypass_accsdb у существующего применятся только после перезапуска контейнера.',
+            'But removing a user and changing bypass_accsdb of an existing one apply only after a container restart.') : ''),
+          diffNode(ud.list));
         if (!ok) return;
 
         const body = JSON.stringify(parsed);
@@ -3806,7 +3905,8 @@
           showToast(err, 'err');
           return;
         }
-        showToast('users.json сохранён', 'ok');
+        if (ud.needRestart) markRestart(['users.json']);
+        showToast('users.json сохранён', ud.needRestart ? 'warn' : 'ok');
         await refresh();
       }
 
@@ -3893,6 +3993,12 @@
       });
 
       $('#saveUsersBtn').addEventListener('click', saveUsersJson);
+
+      $('#usersSearch').addEventListener('input', e => {
+        try { usersDetailToData(); } catch (err) { showToast(err.message || String(err), 'err'); return; }
+        usersFilter = e.target.value;
+        usersRenderListAndDetail();
+      });
 
       $$('#panel-users .users-inner-tabs .tab').forEach(btn => {
         btn.addEventListener('click', () => usersSwitchSubView(btn.dataset.usersView));
@@ -4065,6 +4171,31 @@
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
 
+      /* ── Plus 6: сравнение users.json ── */
+      function usersDiff(next) {
+        let prev = [];
+        try { prev = JSON.parse(usersBaseText || '[]'); if (!Array.isArray(prev)) prev = []; } catch (e) { prev = []; }
+        const keyOf = (u, i) => (u && (u.id || (u.ids && u.ids[0]))) || ('#' + (i + 1));
+        // значения по умолчанию (null, '', false, [], {}) и их отсутствие равнозначны
+        const clean = u => { const o = {}; Object.keys(u || {}).forEach(k => { const v = u[k];
+          if (v === null || v === '' || v === false || (Array.isArray(v) && !v.length) || (isPlainObject(v) && !Object.keys(v).length)) return; o[k] = v; }); return o; };
+        const pm = {}, nm = {};
+        prev.forEach((u, i) => { pm[keyOf(u, i)] = clean(u); });
+        next.forEach((u, i) => { nm[keyOf(u, i)] = clean(u); });
+        const list = [];
+        let needRestart = false;
+        Object.keys(nm).forEach(k => {
+          if (!(k in pm)) { list.push({ path: k, from: undefined, to: nm[k], fromText: tr('нет', 'none'), toText: tr('добавить пользователя', 'add user') }); return; }
+          const sub = [];
+          diffValues(pm[k], nm[k], k, false, sub);
+          sub.forEach(d => { if (/\.bypass_accsdb$/.test(d.path)) needRestart = true; if (d.to === undefined) d.toText = d.from === true ? 'false' : tr('по умолчанию', 'default'); list.push(d); });
+        });
+        Object.keys(pm).forEach(k => {
+          if (!(k in nm)) { needRestart = true; list.push({ path: k, from: pm[k], to: undefined, fromText: tr('есть', 'exists'), toText: tr('удалить пользователя', 'remove user') }); }
+        });
+        return { list: list, needRestart: needRestart };
+      }
+
       /* ── Plus 4: «что изменится» перед сохранением ── */
       // Плоский список отличий между старым и новым значением. useCurrent: если ключа нет в init.conf,
       // «было» берётся из current (действующее значение), и совпадающие с ним записи не считаются изменением.
@@ -4128,6 +4259,8 @@
           if (secChanged) a.textContent = tr('задан', 'set');
           b.textContent = d.to === undefined ? tr('удалить из init.conf', 'remove from init.conf')
             : (secChanged ? tr('изменён', 'changed') : fmtDiffVal(d.to, d.path));
+          if (d.fromText) a.textContent = d.fromText;
+          if (d.toText) b.textContent = d.toText;
           v.appendChild(a); v.appendChild(ar); v.appendChild(b);
           r.appendChild(p); r.appendChild(v);
           box.appendChild(r);
