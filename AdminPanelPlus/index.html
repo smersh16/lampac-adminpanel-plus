@@ -214,7 +214,7 @@
       align-items: center;
       justify-content: center;
       min-height: 34px;
-      min-width: 5.75rem;
+      min-width: 0;
       box-sizing: border-box;
       transition: background var(--dur) var(--ease), color var(--dur) var(--ease), border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
     }
@@ -284,7 +284,7 @@
     .topbar-actions>.btn:not(.btn-icon),
     .topbar-actions>a.btn {
       min-height: 34px;
-      min-width: 8.75rem;
+      min-width: 0;
       box-sizing: border-box;
       justify-content: center;
     }
@@ -1832,7 +1832,7 @@
       border: 1px solid var(--border); background: var(--surface); color: var(--text); width: 100%;
     }
     .reset-line { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
-    .field-reset { border: 1px solid var(--border); background: var(--surface-2); color: var(--text-muted); border-radius: var(--r-md); cursor: pointer; padding: 0 8px; line-height: 22px; }
+    .field-reset { border: 1px solid var(--border); background: var(--surface-2); color: var(--text-muted); border-radius: var(--r-md); cursor: pointer; padding: 0 10px; line-height: 22px; font-size: var(--text-xs); }
     .field-reset:hover { color: var(--accent); border-color: var(--accent); }
     .reset-note { font-size: var(--text-xs); color: var(--warn); }
     .simple-row.is-reset input, .simple-row.is-reset textarea { opacity: .5; }
@@ -1840,6 +1840,51 @@
     .dialog.dialog-wide { max-width: 560px; }
     #backupsList { max-height: 50vh; overflow: auto; margin-bottom: var(--sp-4); }
     .backup-row { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: var(--text-sm); }
+    /* ── Plus 2: шапка, обзор, подвкладки ── */
+    .topbar { gap: var(--sp-3); }
+    .topbar-app-nav a { padding: 6px 10px; }
+    #saveInitBtn { min-width: 8.5rem; justify-content: center; }
+    [hidden] { display: none !important; }
+    .adv-nav { display: inline-flex; margin-bottom: var(--sp-4); }
+    .tech-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-xs); color: var(--text-muted); cursor: pointer; white-space: nowrap; padding-top: 4px; }
+    .restart-banner { display: flex; gap: var(--sp-3); align-items: center; justify-content: space-between; padding: var(--sp-3) var(--sp-4); margin: 0 auto var(--sp-4); max-width: 1400px; border-radius: var(--r-lg); background: var(--warn-dim); color: var(--warn); font-size: var(--text-sm); line-height: 1.5; }
+    .ov-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: var(--sp-3); margin-bottom: var(--sp-5); }
+    .ov-tile { text-align: left; font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-xl); padding: var(--sp-4); cursor: pointer; display: flex; flex-direction: column; gap: 6px; transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease), transform var(--dur) var(--ease); }
+    .ov-tile:hover { border-color: var(--accent); background: var(--surface-2); transform: translateY(-1px); }
+    .ov-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .ov-label { font-size: var(--text-xs); color: var(--text-muted); font-weight: 600; }
+    .ov-value { font-size: var(--text-xl); font-weight: 700; letter-spacing: -0.02em; display: flex; align-items: center; gap: 8px; line-height: 1.2; }
+    .ov-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--text-faint); flex-shrink: 0; }
+    .ov-dot.on { background: var(--ok); }
+    .ov-sub { font-size: var(--text-xs); color: var(--text-muted); min-height: 1.2em; }
+    .ov-h { font-size: var(--text-sm); font-weight: 700; margin: var(--sp-5) 0 var(--sp-3); }
+    .ov-notes { display: flex; flex-direction: column; gap: var(--sp-2); }
+    .ov-note { padding: var(--sp-3) var(--sp-4); border-radius: var(--r-lg); border: 1px solid var(--border); background: var(--surface); font-size: var(--text-sm); line-height: 1.5; color: var(--text-muted); }
+    .ov-note.warn { background: var(--warn-dim); border-color: transparent; color: var(--warn); }
+    @media (min-width: 901px) {
+      .layout.no-side { grid-template-columns: 1fr; }
+      .layout.no-side .sidebar { display: none; }
+    }
+    .key-block-simple, .section-group-simple { scroll-margin-top: 12px; }
+    /* простой редактор делит классы с JSON-редактором: гасим его отступы и подсветку */
+    details.simple-key-block.key-block { padding: 0; }
+    details.simple-key-block.key-block:hover { background: var(--surface); }
+    .simple-key-summary.key-head { margin-bottom: 0; }
+    details.section-group-simple > details.simple-key-block { margin: 0 var(--sp-4) var(--sp-3); }
+    @media (max-width: 900px) {
+      .topbar .topbar-app-nav { display: none; }
+      .topbar-logo { font-size: 0; }
+      .topbar-actions { gap: 6px; }
+      .topbar-actions .btn-icon, .mobile-nav-toggle { width: 40px; height: 40px; min-width: 40px; min-height: 40px; }
+      .topbar-actions > .btn:not(.btn-icon) { min-height: 40px; }
+      #saveInitBtn { min-width: 0; }
+      #saveInitBtn .btn-count { display: inline; }
+    }
+    @media (max-width: 600px) {
+      .ov-grid { grid-template-columns: repeat(2, 1fr); gap: var(--sp-2); }
+      .ov-value { font-size: var(--text-lg); }
+      .ov-tile { padding: var(--sp-3); }
+    }
   </style>
 </head>
 
@@ -1876,49 +1921,25 @@
         </nav>
 
         <div class="tabs" role="tablist">
-          <button type="button" class="tab active" data-panel="sections" role="tab">
+          <button type="button" class="tab active" data-panel="overview" role="tab">
             <svg style="width:12px;height:12px;margin-right:4px;vertical-align:-1px" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round">
-              <rect x="3" y="3" width="7" height="7" />
-              <rect x="14" y="3" width="7" height="7" />
-              <rect x="3" y="14" width="7" height="7" />
-              <rect x="14" y="14" width="7" height="7" />
-            </svg>
-            Группы
+              stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            Обзор
           </button>
           <button type="button" class="tab" data-panel="simple" role="tab">
             <svg style="width:12px;height:12px;margin-right:4px;vertical-align:-1px" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-            </svg>
+              stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Редактор
-          </button>
-          <button type="button" class="tab" data-panel="init" role="tab">
-            <svg style="width:12px;height:12px;margin-right:4px;vertical-align:-1px" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-            </svg>
-            init.conf
-          </button>
-          <button type="button" class="tab" data-panel="current" role="tab">
-            <svg style="width:12px;height:12px;margin-right:4px;vertical-align:-1px" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-            current.conf
           </button>
           <button type="button" class="tab" data-panel="users" role="tab">
             <svg style="width:12px;height:12px;margin-right:4px;vertical-align:-1px" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
-            users.json
+              stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Пользователи
+          </button>
+          <button type="button" class="tab" data-panel="advanced" role="tab">
+            <svg style="width:12px;height:12px;margin-right:4px;vertical-align:-1px" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            Для опытных
           </button>
         </div>
 
@@ -1950,18 +1971,17 @@
               <polyline points="17 21 17 13 7 13 7 21" />
               <polyline points="7 3 7 8 15 8" />
             </svg>
-            <span class="btn-label">Сохранить</span>
+            <span class="btn-label">Сохранить</span><span class="btn-count"></span>
           </button>
         </div>
       </header>
 
       <!-- MOBILE TABS (visible < 900px) -->
       <div class="mobile-tabs" id="mobileTabs">
-        <button type="button" class="tab active" data-panel="sections">Группы</button>
+        <button type="button" class="tab active" data-panel="overview">Обзор</button>
         <button type="button" class="tab" data-panel="simple">Редактор</button>
-        <button type="button" class="tab" data-panel="init">init.conf</button>
-        <button type="button" class="tab" data-panel="current">current</button>
-        <button type="button" class="tab" data-panel="users">users</button>
+        <button type="button" class="tab" data-panel="users">Пользователи</button>
+        <button type="button" class="tab" data-panel="advanced">Для опытных</button>
       </div>
     </div>
 
@@ -2042,8 +2062,29 @@
         <!-- Toast container -->
         <div class="toast-container" id="toastContainer"></div>
 
+        <div class="restart-banner" id="restartBanner" hidden></div>
+
+        <div class="tabs adv-nav" id="advNav" role="tablist" hidden>
+          <button type="button" class="tab active" data-panel="sections" role="tab">Группы (JSON)</button>
+          <button type="button" class="tab" data-panel="init" role="tab">init.conf</button>
+          <button type="button" class="tab" data-panel="current" role="tab">current.conf</button>
+        </div>
+
+        <!-- PANEL: Overview -->
+        <div class="panel active" id="panel-overview" data-panel="overview">
+          <div class="panel-header">
+            <div class="panel-header-info">
+              <h2>Обзор</h2>
+              <p>Главные настройки сервера. Нажмите на карточку, чтобы перейти к параметру в редакторе.</p>
+            </div>
+          </div>
+          <div class="ov-grid" id="ovTiles"></div>
+          <div class="ov-h" id="ovNotesH" hidden>Что стоит проверить</div>
+          <div class="ov-notes" id="ovNotes"></div>
+        </div>
+
         <!-- PANEL: Sections (JSON) -->
-        <div class="panel active" id="panel-sections" data-panel="sections">
+        <div class="panel" id="panel-sections" data-panel="sections">
           <div class="panel-header">
             <div class="panel-header-info">
               <h2>Группы (JSON)</h2>
@@ -2073,17 +2114,20 @@
         <div class="panel" id="panel-simple" data-panel="simple">
           <div class="panel-header">
             <div class="panel-header-info">
-              <h2>Простой редактор</h2>
-              <p>Поля формы по структуре <code>current.conf</code> + <code>init.conf</code>. Значения берутся из init,
-                подсказки — из current. Массивы и вложенные объекты — JSON-блоки.</p>
+              <h2>Редактор</h2>
+              <p>Все параметры по разделам. Изменённые поля сохраняются кнопкой «Сохранить» вверху (Ctrl+S) или у
+                отдельного блока. Язык подсказок переключается кнопкой RU/EN.</p>
             </div>
+            <label class="tech-toggle" title="Служебные поля снимка конфигурации (guid, freeDiskSpace)">
+              <input type="checkbox" id="techToggle"> Показывать служебные
+            </label>
           </div>
           <div class="search-bar">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
-            <input type="search" class="filter-input" id="keyFilterSimple" placeholder="Поиск по ключу..."
+            <input type="search" class="filter-input" id="keyFilterSimple" placeholder="Поиск по названию, ключу или описанию..."
               autocomplete="off" spellcheck="false">
             <button class="search-clear" id="keyFilterSimpleClear" type="button">&times;</button>
             <div class="filter-count" id="keyFilterSimpleCount"></div>
@@ -2327,32 +2371,33 @@
       }
 
       /* ── Panel Switching ── */
+      const ADV_PANELS = ['sections', 'init', 'current'];
+      let lastAdvPanel = 'sections';
+
       function switchPanel(id) {
+        if (id === 'advanced') id = lastAdvPanel;
+        const isAdv = ADV_PANELS.indexOf(id) >= 0;
+        if (isAdv) lastAdvPanel = id;
         const prevPanel = $('.panel.active');
         const prevId = prevPanel ? prevPanel.dataset.panel : null;
         if (prevId === 'users' && id !== 'users' && usersEditorView === 'form')
           usersSerializeFormToTextarea();
 
+        const topId = isAdv ? 'advanced' : id;
         $$('.topbar .tabs .tab[data-panel], #mobileTabs .tab[data-panel]').forEach(t =>
-          t.classList.toggle('active', t.dataset.panel === id));
+          t.classList.toggle('active', t.dataset.panel === topId));
+        $$('#advNav .tab[data-panel]').forEach(t => t.classList.toggle('active', t.dataset.panel === id));
+        $('#advNav').hidden = !isAdv;
         $$('.panel').forEach(p => p.classList.toggle('active', p.dataset.panel === id));
         const sj = $('#sidebarJsonNav');
         const ss = $('#sidebarSimpleNav');
         if (sj && ss) {
-          if (id === 'simple') {
-            sj.hidden = true;
-            ss.hidden = false;
-          } else if (id === 'sections') {
-            sj.hidden = false;
-            ss.hidden = true;
-          } else if (id === 'users') {
-            sj.hidden = true;
-            ss.hidden = true;
-          } else {
-            sj.hidden = false;
-            ss.hidden = true;
-          }
+          sj.hidden = !isAdv;
+          ss.hidden = id !== 'simple';
         }
+        const lay = $('.layout');
+        if (lay) lay.classList.toggle('no-side', id === 'overview' || id === 'users');
+        updateSaveBtn();
       }
 
       function activePanelId() {
@@ -2858,7 +2903,7 @@
         const b = document.createElement('button');
         b.type = 'button';
         b.className = 'field-reset';
-        b.textContent = '↺';
+        b.textContent = '↺ ' + tr('по умолчанию', 'default');
         b.title = tr('Сбросить к значению по умолчанию (убрать из init.conf)', 'Reset to default (remove from init.conf)');
         b.addEventListener('click', () => {
           if (el.dataset.reset === '1') {
@@ -2940,6 +2985,7 @@
         if (!nav) return;
         nav.innerHTML = '';
         catalogGroupsMeta.forEach(g => {
+          if (!showTech && TECH_GROUPS.indexOf(g.id) >= 0) return;
           const n = (g.keys && g.keys.length) || 0;
           const b = document.createElement('button');
           b.type = 'button';
@@ -2992,7 +3038,7 @@
         let total = 0, visible = 0;
         $$('.key-block-simple').forEach(el => {
           total++;
-          const k = ((el.dataset.key || '') + ' ' + el.textContent).toLowerCase();
+          const k = ((el.dataset.key || '') + ' ' + el.textContent + ' ' + hintSearchText(el.dataset.key || '')).toLowerCase();
           const show = q.length === 0 || k.includes(q);
           el.classList.toggle('hidden', !show);
           if (show) visible++;
@@ -3146,7 +3192,10 @@
         const snapK = snapshotSimpleKeyOpen(mount);
         if (snapK !== null) simpleKeyOpenIds = snapK;
         mount.innerHTML = '';
-        catalogGroupsMeta.forEach((g, idx) => {
+        let shownIdx = 0;
+        catalogGroupsMeta.forEach((g) => {
+          if (!showTech && TECH_GROUPS.indexOf(g.id) >= 0) return;
+          const idx = shownIdx++;
           const det = document.createElement('details');
           det.className = 'section-group section-group-simple';
           det.id = 'simple-grp-' + g.id;
@@ -3192,7 +3241,7 @@
         if (spec.init !== undefined && spec.init !== null) inp.value = String(spec.init);
         inp.dataset.orig = inp.value;
         if (spec.init === null) inp.placeholder = 'null';
-        else if (spec.current !== undefined) inp.placeholder = tr('сейчас: ', 'now: ') + curText(spec);
+        else if (spec.current !== undefined) inp.placeholder = spec.current === null ? tr('не задано', 'not set') : tr('сейчас: ', 'now: ') + curText(spec);
         if (isRoot) inp.dataset.formRootScalar = '1';
         else inp.dataset.formPath = spec.path;
         if (inp.type !== 'password') return inp;
@@ -3224,7 +3273,7 @@
         const ctrl = makeScalarControl(spec, false);
         cell.appendChild(ctrl);
         if (h) cell.appendChild(hintEl(h));
-        if (spec.current !== undefined) {
+        if (spec.current !== undefined && spec.init !== undefined && JSON.stringify(spec.init) !== JSON.stringify(spec.current)) {
           const hint = document.createElement('div');
           hint.className = 'simple-cur-hint';
           hint.textContent = tr('сейчас: ', 'now: ') + curText(spec);
@@ -3378,10 +3427,13 @@
         }
         const inInit = initObj && key in initObj;
         const inCur = currentObj && key in currentObj;
-        const badge = document.createElement('span');
-        badge.className = 'badge' + (inInit ? ' badge-accent' : '');
-        badge.textContent = inInit ? 'в init' : (inCur ? 'только current' : 'нет');
-        sum.appendChild(badge);
+        if (inInit) {
+          const badge = document.createElement('span');
+          badge.className = 'badge badge-accent';
+          badge.textContent = tr('изменено', 'customized');
+          badge.title = tr('Ключ задан в вашем init.conf', 'This key is set in your init.conf');
+          sum.appendChild(badge);
+        }
         const actions = document.createElement('div');
         actions.className = 'key-actions';
         const bSave = document.createElement('button');
@@ -3506,45 +3558,89 @@
       }
 
       async function saveSimpleSection(key, wrap) {
-        hintCtx = { key: key, provider: wrap.dataset.provider === '1' };
-        const changed = simpleChangedControls(wrap);
-        if (changed.length === 0) {
-          showToast('«' + key + '»: ' + tr('изменений нет', 'no changes'), 'ok');
+        return saveSimpleSections([[key, wrap]]);
+      }
+
+      function simpleChangedWraps() {
+        return $$('details.simple-key-block', $('#simpleMount'))
+          .filter(w => simpleChangedControls(w).length > 0)
+          .map(w => [w.dataset.key, w]);
+      }
+
+      // list: [[ключ, details], ...]; предупреждения собираются в одно подтверждение
+      async function saveSimpleSections(list) {
+        if (list.length === 0) {
+          showToast(tr('Изменений нет', 'No changes'), 'ok');
           return;
         }
-        const hints = changed.map(el => getHint(el.dataset.formPath || '')).filter(Boolean);
-        const warns = hints.filter(h => h.t.w).map(h => '• ' + h.t.t + ': ' + h.t.w);
+        const warns = [];
+        const prepared = [];
+        const restartKeys = [];
+        for (const [key, wrap] of list) {
+          hintCtx = { key: key, provider: wrap.dataset.provider === '1' };
+          const hints = simpleChangedControls(wrap).map(el => getHint(el.dataset.formPath || '')).filter(Boolean);
+          hints.filter(h => h.t.w).forEach(h => warns.push('• ' + h.t.t + ': ' + h.t.w));
+          if (hints.some(h => h.restart)) restartKeys.push(key);
+          try {
+            prepared.push([key, JSON.stringify(collectSimpleSection(wrap))]);
+          } catch (e) {
+            showToast('«' + key + '»: ' + (e.message || String(e)), 'err');
+            return;
+          }
+        }
         if (warns.length && !(await showConfirm(tr('Рискованное изменение', 'Risky change'), warns.join('\n'))))
           return;
-        const restart = hints.some(h => h.restart);
-        let body;
-        try {
-          body = collectSimpleSection(wrap);
-        } catch (e) {
-          showToast('«' + key + '»: ' + (e.message || String(e)), 'err');
-          return;
+        const saved = [];
+        for (const [key, raw] of prepared) {
+          const res = await api('/adminpanel/api/init/section/' + encodeURIComponent(key), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: raw
+          });
+          if (!res.ok) {
+            showToast('«' + key + '»: ' + (await errText(res)), 'err');
+            if (saved.length) await refresh();
+            return;
+          }
+          saved.push(key);
         }
-        const raw = JSON.stringify(body);
-        try { JSON.parse(raw); } catch (e) {
-          showToast('JSON ошибка: ' + e.message, 'err');
-          return;
-        }
-        const res = await api('/adminpanel/api/init/section/' + encodeURIComponent(key), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: raw
-        });
-        if (!res.ok) {
-          let err = 'Ошибка ' + res.status;
-          try { const j = await res.json(); if (j.error) err = j.error + (j.detail ? ': ' + j.detail : ''); } catch (e) { }
-          showToast(err, 'err');
-          return;
-        }
-        if (restart)
-          showToast('«' + key + '» ' + tr('сохранено. Для применения нужен перезапуск сервера.', 'saved. A server restart is required to apply it.'), 'warn');
-        else
-          showToast('«' + key + '» ' + tr('сохранено', 'saved'), 'ok');
+        if (restartKeys.length) markRestart(restartKeys);
+        showToast(saved.length === 1
+          ? '«' + saved[0] + '» ' + tr('сохранено', 'saved')
+          : tr('Сохранено разделов: ', 'Sections saved: ') + saved.length, restartKeys.length ? 'warn' : 'ok');
         await refresh();
+      }
+
+      /* ── Plus 2: баннер «нужен перезапуск» ── */
+      let restartPending = new Set();
+      try { JSON.parse(sessionStorage.getItem('ap_restart') || '[]').forEach(k => restartPending.add(k)); } catch (e) { }
+
+      function markRestart(keys) {
+        keys.forEach(k => restartPending.add(k));
+        try { sessionStorage.setItem('ap_restart', JSON.stringify(Array.from(restartPending))); } catch (e) { }
+        renderRestartBanner();
+      }
+
+      function renderRestartBanner() {
+        const box = $('#restartBanner');
+        if (!box) return;
+        box.innerHTML = '';
+        box.hidden = restartPending.size === 0;
+        if (restartPending.size === 0) return;
+        const t = document.createElement('span');
+        t.textContent = tr('Нужен перезапуск сервера, чтобы применились: ', 'A server restart is required to apply: ')
+          + Array.from(restartPending).join(', ');
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-ghost btn-sm';
+        b.textContent = tr('Перезапустил, скрыть', 'Restarted, hide');
+        b.addEventListener('click', () => {
+          restartPending = new Set();
+          try { sessionStorage.removeItem('ap_restart'); } catch (e) { }
+          renderRestartBanner();
+        });
+        box.appendChild(t);
+        box.appendChild(b);
       }
 
       async function resetSection(key) {
@@ -3621,9 +3717,22 @@
       }
 
       async function saveActiveConfig() {
-        if (activePanelId() === 'users')
-          return saveUsersJson();
-        return saveFullInit();
+        const id = activePanelId();
+        if (id === 'users') return saveUsersJson();
+        if (id === 'simple') return saveSimpleSections(simpleChangedWraps());
+        if (id === 'init') return saveFullInit();
+        if (id === 'sections')
+          showToast('В «Группах» сохраняйте кнопкой у нужного ключа.', 'warn');
+      }
+
+      function updateSaveBtn() {
+        const id = activePanelId();
+        const btn = $('#saveInitBtn');
+        if (!btn) return;
+        btn.style.display = (id === 'simple' || id === 'init' || id === 'users') ? '' : 'none';
+        const n = id === 'simple' ? simpleChangedControls($('#simpleMount')).length : 0;
+        $('#saveInitBtn .btn-count').textContent = n > 0 ? ' (' + n + ')' : '';
+        $('#unsavedDot').classList.toggle('visible', n > 0);
       }
 
       /* ── Copy to clipboard ── */
@@ -3650,6 +3759,8 @@
           await loadHints();
           renderSections();
           renderSimpleSections();
+          renderOverview();
+          updateSaveBtn();
         } catch (e) {
           showToast(e.message || String(e), 'err');
         }
@@ -3710,7 +3821,7 @@
       });
 
       // Tabs (только верхняя полоса и мобильные — не внутренние вкладки users.json)
-      $$('.topbar .tabs .tab[data-panel], #mobileTabs .tab[data-panel]').forEach(t =>
+      $$('.topbar .tabs .tab[data-panel], #mobileTabs .tab[data-panel], #advNav .tab[data-panel]').forEach(t =>
         t.addEventListener('click', () => switchPanel(t.dataset.panel)));
 
       // Theme
@@ -3757,6 +3868,8 @@
         try { localStorage.setItem('ap_lang', hintLang); } catch (e) { }
         syncLangBtn();
         renderSimpleSections();
+        renderOverview();
+        updateSaveBtn();
       });
       syncLangBtn();
 
@@ -3818,6 +3931,159 @@
       $('#backupsBtn').addEventListener('click', openBackups);
       $('#backupsClose').addEventListener('click', () => $('#backupsDialog').classList.add('hidden'));
 
+      /* ── Plus 2: обзор, служебные ключи, поиск по описаниям ── */
+      const TECH_GROUPS = ['runtime'];
+      let showTech = false;
+      try { showTech = localStorage.getItem('ap_tech') === '1'; } catch (e) { }
+
+      // поиск и по русскому, и по английскому тексту подсказок (общие подсказки провайдеров не берём)
+      function hintSearchText(key) {
+        let out = '';
+        for (const name in hintsMap) {
+          if (name === '_provider') continue;
+          if (name !== key && name.indexOf(key + '.') !== 0) continue;
+          const h = hintsMap[name];
+          ['ru', 'en'].forEach(l => { if (h[l]) out += ' ' + (h[l].t || '') + ' ' + (h[l].d || ''); });
+        }
+        return out;
+      }
+
+      function getPath(obj, path) {
+        return path.split('.').reduce((o, k) => (o && typeof o === 'object' && k in o) ? o[k] : undefined, obj);
+      }
+
+      function openInEditor(key, groupId) {
+        switchPanel('simple');
+        if ($('#keyFilterSimple').value) {
+          $('#keyFilterSimple').value = '';
+          applyKeyFilterSimple();
+        }
+        const blk = key ? $('.key-block-simple[data-key="' + CSS.escape(key) + '"]') : null;
+        const grp = blk ? blk.closest('details.section-group-simple') : (groupId ? document.getElementById('simple-grp-' + groupId) : null);
+        if (grp) grp.open = true;
+        if (blk) blk.open = true;
+        const el = blk || grp;
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      const OV_TILES = [
+        { key: 'listen', path: 'listen.port', ru: 'Порт сервера', en: 'Server port', type: 'text' },
+        { key: 'accsdb', path: 'accsdb.enable', ru: 'Доступ по аккаунтам', en: 'Account access', type: 'bool' },
+        { key: 'WAF', path: 'WAF.enable', ru: 'Брандмауэр (WAF)', en: 'Firewall (WAF)', type: 'bool' },
+        { key: 'lowMemoryMode', path: 'lowMemoryMode', ru: 'Режим низкой памяти', en: 'Low memory mode', type: 'bool' },
+        { key: 'chromium', path: 'chromium.enable', ru: 'Браузер Chromium', en: 'Chromium browser', type: 'bool' },
+        { key: 'rch', path: 'rch.enable', ru: 'RCH', en: 'RCH', type: 'bool' }
+      ];
+
+      function ovTile(label, value, on, sub, onClick) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'ov-tile';
+        const l = document.createElement('div');
+        l.className = 'ov-label';
+        l.textContent = label;
+        const v = document.createElement('div');
+        v.className = 'ov-value';
+        if (on !== null) {
+          const d = document.createElement('span');
+          d.className = 'ov-dot' + (on ? ' on' : '');
+          v.appendChild(d);
+        }
+        const vt = document.createElement('span');
+        vt.textContent = value;
+        v.appendChild(vt);
+        const s = document.createElement('div');
+        s.className = 'ov-sub';
+        s.textContent = sub || '';
+        b.appendChild(l);
+        b.appendChild(v);
+        b.appendChild(s);
+        b.addEventListener('click', onClick);
+        return b;
+      }
+
+      function providerStats() {
+        let total = 0, enabled = 0;
+        catalogGroupsMeta.filter(g => g.id.indexOf('src-') === 0).forEach(g => {
+          (g.keys || []).forEach(k => {
+            const v = currentObj[k];
+            if (!isPlainObject(v)) return;
+            total++;
+            if (v.enable === true) enabled++;
+          });
+        });
+        return { total: total, enabled: enabled };
+      }
+
+      function renderOverview() {
+        const mount = $('#ovTiles');
+        if (!mount) return;
+        mount.innerHTML = '';
+        OV_TILES.forEach(t => {
+          const v = getPath(currentObj, t.path);
+          const custom = getPath(initObj, t.path) !== undefined;
+          const text = t.type === 'bool'
+            ? (v === undefined ? '—' : (v ? tr('Включено', 'On') : tr('Выключено', 'Off')))
+            : (v === undefined || v === null ? '—' : String(v));
+          mount.appendChild(ovTile(tr(t.ru, t.en), text, t.type === 'bool' && v !== undefined ? v === true : null,
+            custom ? tr('изменено вами', 'customized by you') : tr('по умолчанию', 'default'),
+            () => openInEditor(t.key)));
+        });
+
+        const ps = providerStats();
+        mount.appendChild(ovTile(tr('Источники', 'Sources'), ps.enabled + ' / ' + ps.total, null,
+          tr('включено из доступных', 'enabled of available'), () => openInEditor(null, 'src-vod')));
+
+        let usersCount = null;
+        try { usersCount = JSON.parse($('#usersRaw').value || '[]').length; } catch (e) { }
+        mount.appendChild(ovTile(tr('Пользователи', 'Users'), usersCount === null ? '—' : String(usersCount), null,
+          'users.json', () => switchPanel('users')));
+
+        const bk = ovTile(tr('Резервные копии', 'Backups'), '…', null, tr('последняя копия', 'latest copy'), openBackups);
+        mount.appendChild(bk);
+        api('/adminpanel/api/backups').then(r => r.ok ? r.json() : []).then(list => {
+          bk.querySelector('.ov-value span').textContent = String(list.length);
+          bk.querySelector('.ov-sub').textContent = list.length
+            ? tr('последняя: ', 'latest: ') + new Date(list[0].utc).toLocaleString()
+            : tr('пока нет', 'none yet');
+        }).catch(() => { bk.querySelector('.ov-value span').textContent = '—'; });
+
+        const notes = [];
+        const accsOn = getPath(currentObj, 'accsdb.enable') === true;
+        const wafOn = getPath(currentObj, 'WAF.enable') === true;
+        if (accsOn && usersCount === 0 && !getPath(currentObj, 'accsdb.shared_passwd'))
+          notes.push({ warn: true, text: tr('Доступ по аккаунтам включён, но список пользователей пуст.', 'Account access is on, but the users list is empty.') });
+        if (!accsOn && !wafOn)
+          notes.push({ warn: false, text: tr('Доступ без авторизации, WAF выключен. Для домашней сети это нормально; если сервер открыт в интернет, настройте WAF или доступ по аккаунтам.', 'No authentication and WAF is off. That is fine for a home network; if the server is exposed to the internet, set up WAF or account access.') });
+        const nb = $('#ovNotes');
+        nb.innerHTML = '';
+        $('#ovNotesH').hidden = notes.length === 0;
+        notes.forEach(n => {
+          const d = document.createElement('div');
+          d.className = 'ov-note' + (n.warn ? ' warn' : '');
+          d.textContent = n.text;
+          nb.appendChild(d);
+        });
+        renderRestartBanner();
+      }
+
+      $('#techToggle').checked = showTech;
+      $('#techToggle').addEventListener('change', async (e) => {
+        if (simpleChangedControls($('#simpleMount')).length > 0 &&
+          !(await showConfirm('Показать/скрыть служебные?', 'Несохранённые правки в редакторе будут потеряны.'))) {
+          e.target.checked = showTech;
+          return;
+        }
+        showTech = e.target.checked;
+        try { localStorage.setItem('ap_tech', showTech ? '1' : '0'); } catch (err) { }
+        renderCatalogNav();
+        renderSimpleSections();
+        updateSaveBtn();
+      });
+
+      ['input', 'change'].forEach(ev => $('#simpleMount').addEventListener(ev, updateSaveBtn));
+      $('#simpleMount').addEventListener('click', () => setTimeout(updateSaveBtn, 0));
+
       /* ── Keyboard Shortcuts ── */
       document.addEventListener('keydown', (e) => {
         // Ctrl+S / Cmd+S — save init
@@ -3846,6 +4112,7 @@
 
       /* ── Boot ── */
       (async function boot() {
+        switchPanel('overview');
         try {
           await loadGroupsMeta();
           await loadCatalogGroupsMeta();
@@ -3856,6 +4123,8 @@
           await loadHints();
           renderSections();
           renderSimpleSections();
+          renderOverview();
+          updateSaveBtn();
         } catch (e) {
           showToast(e.message || String(e), 'err');
         }
