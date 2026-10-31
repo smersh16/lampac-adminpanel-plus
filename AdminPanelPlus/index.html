@@ -1878,6 +1878,9 @@
     #confirmDialog .dialog.dialog-wide { max-width: 640px; }
     #confirmMsg:empty { display: none; }
     #confirmDiff:not(:empty) + .dialog-actions { margin-top: var(--sp-4); }
+    .users-ext { margin: 0 0 var(--sp-3); padding: var(--sp-3) var(--sp-4); border-radius: var(--r-lg); background: var(--warn-dim); color: var(--warn); font-size: var(--text-sm); line-height: 1.5; display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; justify-content: space-between; }
+    .users-ext[hidden] { display: none; }
+    .users-ext span { overflow-wrap: anywhere; flex: 1 1 260px; }
     .uf-hint { font-size: var(--text-xs); color: var(--text-muted); line-height: 1.5; margin-top: 4px; }
     .uf-exp { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
     .uf-exp .uf-expires { flex: 1 1 190px; min-width: 0; }
@@ -2327,6 +2330,7 @@
                 <button type="button" class="btn btn-primary btn-sm" id="usersAddBtn">+ Пользователь</button>
                 <button type="button" class="btn btn-ghost btn-sm" id="usersFormFromJsonBtn">Обновить из JSON</button>
               </div>
+              <div class="users-ext" id="usersExt" hidden></div>
               <div class="users-split">
                 <aside class="users-list-aside" aria-label="Список учётных записей">
                   <div class="users-list-h">Пользователи</div>
@@ -2739,6 +2743,45 @@
         usersFormData[usersSelectedIndex] = usersReadDetailCardToObject(card);
       }
 
+      // Действующие пользователи (current.conf → accsdb.users): из users.json, accsdb.accounts и accsdb.users в init.conf.
+      // Вкладка редактирует только users.json, поэтому остальных показываем отдельно и даём перенести в форму.
+      function usersExternal() {
+        const eff = getPath(currentObj, 'accsdb.users');
+        if (!Array.isArray(eff)) return [];
+        const known = new Set();
+        usersFormData.forEach(u => {
+          if (u.id) known.add(String(u.id).trim().toLowerCase());
+          (u.ids || []).forEach(x => known.add(String(x).trim().toLowerCase()));
+        });
+        return eff.filter(u => u && typeof u === 'object' && u.id && !known.has(String(u.id).trim().toLowerCase()));
+      }
+
+      function usersRenderExt() {
+        const box = $('#usersExt');
+        if (!box) return;
+        const ext = usersExternal();
+        box.innerHTML = '';
+        box.hidden = ext.length === 0;
+        if (!ext.length) return;
+        const t = document.createElement('span');
+        t.textContent = tr('Действуют, но не записаны в users.json (заданы в init.conf → accsdb.users/accounts): ',
+          'Active but not in users.json (defined in init.conf → accsdb.users/accounts): ') + ext.map(u => u.id).join(', ');
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-ghost btn-sm';
+        b.textContent = tr('Добавить в форму', 'Add to the form');
+        b.addEventListener('click', () => {
+          try { usersDetailToData(); } catch (err) { showToast(err.message || String(err), 'err'); return; }
+          const list = usersExternal();
+          list.forEach(u => usersFormData.push(usersNormalizeFromJson(u)));
+          usersSelectedIndex = usersFormData.length - list.length;
+          usersRenderListAndDetail();
+          showToast(tr('Добавлено: ', 'Added: ') + list.length + tr('. Нажмите «Сохранить users.json».', '. Press “Save users.json”.'), 'ok');
+        });
+        box.appendChild(t);
+        box.appendChild(b);
+      }
+
       function usersExpInfo(exp) {
         const t = Date.parse(exp);
         if (isNaN(t)) return { text: tr('дата не распознана', 'date not recognised'), cls: 'warn', days: null };
@@ -2814,6 +2857,7 @@
         const emptyEl = $('#usersDetailEmpty');
         if (!listMount || !detMount) return;
 
+        usersRenderExt();
         listMount.innerHTML = '';
         detMount.innerHTML = '';
 
