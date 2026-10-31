@@ -33,15 +33,15 @@
         "d": "Your own API token or partner key. Do not publish it."
       }
     },
-    "priority": {
+    "displayindex": {
       "typical": true,
       "ru": {
-        "t": "Приоритет",
-        "d": "Позиция источника в списке: чем меньше число, тем выше источник."
+        "t": "Порядок в списке",
+        "d": "Позиция источника в списке Lampa: чем меньше число, тем выше. 0 — порядок по умолчанию (в конце, по порядку загрузки)."
       },
       "en": {
-        "t": "Priority",
-        "d": "Position of the source in the list: the smaller the number, the higher the source."
+        "t": "List order",
+        "d": "Source position in the Lampa list: the smaller the number, the higher. 0 means default order (after the numbered ones, in load order)."
       }
     },
     "useproxy": {
