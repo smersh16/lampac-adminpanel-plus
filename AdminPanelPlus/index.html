@@ -1866,6 +1866,18 @@
       .topbar .tabs .tab svg { display: none; }
       .topbar-app-nav a { padding: 6px 9px; }
     }
+    .df-list { max-height: 46vh; overflow: auto; margin: var(--sp-3) 0 0; border: 1px solid var(--border); border-radius: var(--r-lg); font-size: var(--text-sm); }
+    .df-row { padding: 8px var(--sp-3); border-top: 1px solid var(--border-subtle); overflow-wrap: anywhere; }
+    .df-row:first-child { border-top: 0; }
+    .df-path { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
+    .df-vals { margin-top: 2px; line-height: 1.5; }
+    .df-old { color: var(--err); text-decoration: line-through; text-decoration-thickness: 1px; }
+    .df-new { color: var(--ok); font-weight: 600; }
+    .df-arrow { color: var(--text-faint); margin: 0 6px; }
+    .df-more, .df-none { padding: 8px var(--sp-3); color: var(--text-muted); font-size: var(--text-xs); }
+    #confirmDialog .dialog.dialog-wide { max-width: 640px; }
+    #confirmMsg:empty { display: none; }
+    #confirmDiff:not(:empty) + .dialog-actions { margin-top: var(--sp-4); }
     .pv-bar { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; margin-bottom: var(--sp-3); }
     .pv-bar .search-bar { flex: 1 1 240px; margin: 0; }
     .pv-seg { display: inline-flex; border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; }
@@ -2226,6 +2238,9 @@
                 </svg>
                 Копировать
               </button>
+              <button type="button" class="btn btn-ghost btn-sm" id="exportInitBtn" title="Скачать текущий init.conf / Download init.conf">Экспорт</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="importInitBtn" title="Заменить init.conf файлом с компьютера / Replace init.conf with a file">Импорт</button>
+              <input type="file" id="importInitFile" accept=".conf,.json,application/json,text/plain" hidden>
               <span class="editor-toolbar .hint-text"
                 style="font-size:var(--text-xs);color:var(--text-faint);margin-left:auto">
                 <span class="kbd">Ctrl+S</span> сохранить
@@ -2337,7 +2352,8 @@
   <div class="dialog-overlay hidden" id="confirmDialog">
     <div class="dialog">
       <h3 id="confirmTitle">Подтверждение</h3>
-      <p id="confirmMsg">Вы уверены?</p>
+      <p id="confirmMsg" style="white-space:pre-line">Вы уверены?</p>
+      <div id="confirmDiff"></div>
       <div class="dialog-actions">
         <button type="button" class="btn btn-ghost btn-sm" id="confirmCancel">Отмена</button>
         <button type="button" class="btn btn-primary btn-sm" id="confirmOk">Подтвердить</button>
@@ -2476,11 +2492,15 @@
       /* ── Confirm Dialog ── */
       let confirmResolve = null;
 
-      function showConfirm(title, msg) {
+      function showConfirm(title, msg, diffNode) {
         return new Promise(resolve => {
           confirmResolve = resolve;
           $('#confirmTitle').textContent = title;
           $('#confirmMsg').textContent = msg;
+          const dm = $('#confirmDiff');
+          dm.innerHTML = '';
+          if (diffNode) dm.appendChild(diffNode);
+          $('#confirmDialog .dialog').classList.toggle('dialog-wide', !!diffNode);
           $('#confirmDialog').classList.remove('hidden');
         });
       }
@@ -3656,7 +3676,9 @@
             return;
           }
         }
-        if (warns.length && !(await showConfirm(tr('Рискованное изменение', 'Risky change'), warns.join('\n'))))
+        const dl = diffSections(prepared.map(([k, raw]) => [k, initObj[k], JSON.parse(raw)]), true);
+        if (!(await showConfirm(tr('Что изменится', 'What will change'),
+          warns.length ? tr('Рискованные изменения:\n', 'Risky changes:\n') + warns.join('\n') : '', diffNode(dl))))
           return;
         const saved = [];
         for (const [key, raw] of prepared) {
@@ -3732,7 +3754,11 @@
           showToast('JSON ошибка: ' + e.message, 'err');
           return;
         }
-        const ok = await showConfirm('Сохранить init.conf?', 'Весь файл init.conf будет перезаписан. Это действие нельзя отменить.');
+        const parsedRaw = JSON.parse(raw);
+        if (!isPlainObject(parsedRaw)) { showToast(tr('Корень init.conf должен быть объектом', 'init.conf root must be an object'), 'err'); return; }
+        const ok = await showConfirm(tr('Сохранить init.conf?', 'Save init.conf?'),
+          tr('Файл будет перезаписан; предыдущая версия попадёт в «Бэкапы».', 'The file will be overwritten; the previous version goes to Backups.'),
+          diffNode(diffSections([['', initObj, parsedRaw]], false).map(d => d)));
         if (!ok) return;
 
         const res = await api('/adminpanel/api/init', {
@@ -4039,6 +4065,121 @@
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
 
+      /* ── Plus 4: «что изменится» перед сохранением ── */
+      // Плоский список отличий между старым и новым значением. useCurrent: если ключа нет в init.conf,
+      // «было» берётся из current (действующее значение), и совпадающие с ним записи не считаются изменением.
+      function diffValues(oldV, newV, path, useCurrent, out) {
+        if (isPlainObject(oldV) || isPlainObject(newV)) {
+          const o = isPlainObject(oldV) ? oldV : {};
+          const n = isPlainObject(newV) ? newV : {};
+          if ((isPlainObject(oldV) || oldV === undefined) && (isPlainObject(newV) || newV === undefined)) {
+            const keys = Array.from(new Set(Object.keys(o).concat(Object.keys(n))));
+            keys.forEach(k => diffValues(o[k], n[k], path ? path + '.' + k : k, useCurrent, out));
+            return;
+          }
+        }
+        let was = oldV, def = false;
+        if (was === undefined && useCurrent) { was = getPath(currentObj, path); def = was !== undefined; }
+        if (JSON.stringify(was) === JSON.stringify(newV)) return;
+        out.push({ path: path, from: was, to: newV, def: def });
+      }
+
+      function diffSections(pairs, useCurrent) {   // pairs: [[ключ, старое, новое]]
+        const out = [];
+        pairs.forEach(([k, a, b]) => diffValues(a, b, k, useCurrent, out));
+        return out;
+      }
+
+      function fmtDiffVal(v, path) {
+        if (v === undefined) return tr('нет', 'none');
+        if (isSecretPath(path) && typeof v === 'string' && v !== '') return tr('задан', 'set');
+        let t = typeof v === 'string' ? '«' + v + '»' : JSON.stringify(v);
+        if (t.length > 90) t = t.slice(0, 87) + '…';
+        return t;
+      }
+
+      function diffNode(list) {
+        const box = document.createElement('div');
+        box.className = 'df-list';
+        if (!list.length) {
+          const n = document.createElement('div');
+          n.className = 'df-none';
+          n.textContent = tr('Значения совпадают с текущими.', 'Values match the current ones.');
+          box.appendChild(n);
+          return box;
+        }
+        list.slice(0, 200).forEach(d => {
+          const r = document.createElement('div');
+          r.className = 'df-row';
+          const p = document.createElement('div');
+          p.className = 'df-path';
+          p.textContent = d.path;
+          const v = document.createElement('div');
+          v.className = 'df-vals';
+          const a = document.createElement('span');
+          a.className = 'df-old';
+          a.textContent = fmtDiffVal(d.from, d.path) + (d.def ? ' ' + tr('(по умолчанию)', '(default)') : '');
+          const ar = document.createElement('span');
+          ar.className = 'df-arrow';
+          ar.textContent = '→';
+          const b = document.createElement('span');
+          b.className = 'df-new';
+          const secChanged = isSecretPath(d.path) && typeof d.from === 'string' && d.from !== '' && typeof d.to === 'string' && d.to !== '';
+          if (secChanged) a.textContent = tr('задан', 'set');
+          b.textContent = d.to === undefined ? tr('удалить из init.conf', 'remove from init.conf')
+            : (secChanged ? tr('изменён', 'changed') : fmtDiffVal(d.to, d.path));
+          v.appendChild(a); v.appendChild(ar); v.appendChild(b);
+          r.appendChild(p); r.appendChild(v);
+          box.appendChild(r);
+        });
+        if (list.length > 200) {
+          const m = document.createElement('div');
+          m.className = 'df-more';
+          m.textContent = tr('…и ещё ', '…and ') + (list.length - 200) + tr(' изменений', ' more');
+          box.appendChild(m);
+        }
+        return box;
+      }
+
+      /* ── Plus 5: экспорт и импорт init.conf ── */
+      $('#exportInitBtn').addEventListener('click', () => {
+        const blob = new Blob([initText], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        const d = new Date(), z = n => String(n).padStart(2, '0');
+        a.download = 'init-' + d.getFullYear() + z(d.getMonth() + 1) + z(d.getDate()) + '-' + z(d.getHours()) + z(d.getMinutes()) + '.conf';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 0);
+        showToast(tr('init.conf скачан', 'init.conf downloaded'), 'ok');
+      });
+
+      $('#importInitBtn').addEventListener('click', () => $('#importInitFile').click());
+
+      $('#importInitFile').addEventListener('change', async (e) => {
+        const f = e.target.files && e.target.files[0];
+        e.target.value = '';
+        if (!f) return;
+        if (f.size > 2 * 1024 * 1024) { showToast(tr('Файл больше 2 МБ', 'File is larger than 2 MB'), 'err'); return; }
+        let parsed;
+        try { parsed = JSON.parse(await f.text()); } catch (err) {
+          showToast(tr('Это не JSON: ', 'Not valid JSON: ') + err.message, 'err');
+          return;
+        }
+        if (!isPlainObject(parsed)) { showToast(tr('Корень файла должен быть JSON-объектом', 'The file root must be a JSON object'), 'err'); return; }
+        const dl = diffSections([['', initObj, parsed]], false);
+        const ok = await showConfirm(tr('Заменить init.conf файлом «' + f.name + '»?', 'Replace init.conf with “' + f.name + '”?'),
+          tr('Файл будет полностью заменён; текущая версия сохранится в «Бэкапы».', 'The file will be fully replaced; the current version is kept in Backups.'),
+          diffNode(dl));
+        if (!ok) return;
+        const res = await api('/adminpanel/api/init', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(parsed)
+        });
+        if (!res.ok) { showToast(await errText(res), 'err'); return; }
+        showToast(tr('init.conf заменён', 'init.conf replaced'), 'ok');
+        await refresh();
+      });
+
       /* ── Plus 3: провайдеры таблицей ── */
       let provChanges = {};      // { ключ: { поле: значение|null } }; null = убрать поле из init.conf
       let pvFilter = { q: '', state: 'all', group: '' };
@@ -4248,6 +4389,8 @@
           });
           bodies.push([key, JSON.stringify(body)]);
         }
+        const dl = diffSections(bodies.map(([k, raw]) => [k, initObj[k], JSON.parse(raw)]), true);
+        if (!(await showConfirm(tr('Что изменится', 'What will change'), '', diffNode(dl)))) return;
         let done = 0;
         for (const [key, raw] of bodies) {
           const res = await api('/adminpanel/api/init/section/' + encodeURIComponent(key), {
