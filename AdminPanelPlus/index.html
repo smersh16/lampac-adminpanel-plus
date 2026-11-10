@@ -1866,6 +1866,10 @@
       .topbar .tabs .tab svg { display: none; }
       .topbar-app-nav a { padding: 6px 9px; }
     }
+    @media (min-width: 901px) and (max-width: 1400px) {
+      .topbar .tabs .tab { padding-left: 9px; padding-right: 9px; }
+      #reloadBtn .btn-label { display: none; }
+    }
     .df-list { max-height: 46vh; overflow: auto; margin: var(--sp-3) 0 0; border: 1px solid var(--border); border-radius: var(--r-lg); font-size: var(--text-sm); }
     .df-row { padding: 8px var(--sp-3); border-top: 1px solid var(--border-subtle); overflow-wrap: anywhere; }
     .df-row:first-child { border-top: 0; }
@@ -1892,6 +1896,43 @@
     .uf-exp-status.warn { color: var(--warn); }
     .users-list-item.bad .users-list-id { color: var(--err); }
     .users-list-search { margin: 0 var(--sp-3) var(--sp-2); width: calc(100% - 2 * var(--sp-3)); }
+    .md-h { font-size: var(--text-base); font-weight: 700; margin: var(--sp-5) 0 var(--sp-3); }
+    .md-gh { font-size: var(--text-xs); font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; padding: 10px var(--sp-4) 4px; background: var(--surface-2); }
+    .md-gnote { display: block; margin-top: 2px; font-weight: 400; text-transform: none; letter-spacing: 0; }
+    .md-list { border: 1px solid var(--border); border-radius: var(--r-xl); background: var(--surface); overflow: hidden; }
+    .md-row { display: grid; grid-template-columns: 1fr auto 44px; gap: var(--sp-3); align-items: center; padding: 8px var(--sp-4); border-top: 1px solid var(--border-subtle); }
+    .md-gh + .md-row { border-top: 0; }
+    .md-row.off .md-name b { color: var(--text-muted); }
+    .md-name { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .md-name b { font-size: var(--text-base); overflow-wrap: anywhere; }
+    .md-desc { font-size: var(--text-xs); color: var(--text-muted); line-height: 1.5; }
+    .md-note { color: var(--warn); }
+    .md-badges { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+    .md-badge { font-size: var(--text-xs); padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border); white-space: nowrap; }
+    .md-badge.warn { background: var(--warn-dim); color: var(--warn); border-color: transparent; }
+    .md-issues { display: flex; flex-direction: column; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+    .md-issue { display: flex; gap: var(--sp-3); align-items: center; justify-content: space-between; padding: var(--sp-3) var(--sp-4); border-radius: var(--r-lg); font-size: var(--text-sm); line-height: 1.5; background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); }
+    .md-issue span { overflow-wrap: anywhere; flex: 1 1 200px; }
+    .md-issue.err { background: var(--err-dim); color: var(--err); border-color: transparent; }
+    .md-issue.warn { background: var(--warn-dim); color: var(--warn); border-color: transparent; }
+    .md-issue.ok { color: var(--ok); }
+    .md-how { margin: var(--sp-3) 0; font-size: var(--text-sm); color: var(--text-muted); }
+    .md-how summary { cursor: pointer; font-weight: 600; }
+    .md-how ul { margin: 6px 0 0 18px; padding: 0; line-height: 1.6; }
+    .md-ta { font-family: var(--font-mono); margin-top: 6px; }
+    .md-extra { margin-top: var(--sp-3); border: 1px solid var(--border); border-radius: var(--r-xl); background: var(--surface); overflow: hidden; }
+    .md-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px var(--sp-4); }
+    .md-chip { display: inline-flex; gap: 6px; align-items: center; padding: 3px 4px 3px 10px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); font-size: var(--text-sm); }
+    .md-chip button { font: inherit; border: 0; background: transparent; color: var(--text-muted); cursor: pointer; padding: 0 6px; }
+    .md-add { display: flex; gap: 6px; padding: 0 var(--sp-4) var(--sp-3); }
+    .md-cust { display: grid; grid-template-columns: minmax(100px, 1fr) minmax(160px, 3fr) 44px auto; gap: var(--sp-3); align-items: center; padding: 8px var(--sp-4); border-top: 1px solid var(--border-subtle); }
+    .md-list > button { margin: var(--sp-3) var(--sp-4); }
+    @media (max-width: 900px) {
+      .md-row { grid-template-columns: 1fr 44px; }
+      .md-row .md-badges { grid-column: 1; justify-content: flex-start; order: 3; }
+      .md-cust { grid-template-columns: 1fr 44px; }
+      .md-cust .md-url, .md-cust .btn { grid-column: 1 / -1; }
+    }
     .pv-bar { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; margin-bottom: var(--sp-3); }
     .pv-bar .search-bar { flex: 1 1 240px; margin: 0; }
     .pv-seg { display: inline-flex; border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; }
@@ -1997,6 +2038,11 @@
               stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
             Провайдеры
           </button>
+          <button type="button" class="tab" data-panel="modules" role="tab">
+            <svg style="width:12px;height:12px;margin-right:4px;vertical-align:-1px" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+            Модули
+          </button>
           <button type="button" class="tab" data-panel="simple" role="tab">
             <svg style="width:12px;height:12px;margin-right:4px;vertical-align:-1px" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -2051,6 +2097,7 @@
       <div class="mobile-tabs" id="mobileTabs">
         <button type="button" class="tab active" data-panel="overview">Обзор</button>
         <button type="button" class="tab" data-panel="providers">Провайдеры</button>
+        <button type="button" class="tab" data-panel="modules">Модули</button>
         <button type="button" class="tab" data-panel="simple">Редактор</button>
         <button type="button" class="tab" data-panel="users">Пользователи</button>
         <button type="button" class="tab" data-panel="advanced">Для опытных</button>
@@ -2175,6 +2222,25 @@
             <div class="pv-count" id="pvCount"></div>
           </div>
           <div class="pv-table" id="pvMount"></div>
+        </div>
+
+        <!-- PANEL: Modules -->
+        <div class="panel" id="panel-modules" data-panel="modules">
+          <div class="panel-header">
+            <div class="panel-header-info">
+              <h2>Модули и плагины</h2>
+              <p id="modIntro"></p>
+            </div>
+          </div>
+          <div class="pv-bar">
+            <div class="search-bar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input type="search" class="filter-input" id="modSearch" placeholder="Поиск по названию модуля" autocomplete="off" spellcheck="false">
+            </div>
+          </div>
+          <div id="modMount"></div>
         </div>
 
         <!-- PANEL: Sections (JSON) -->
@@ -2498,7 +2564,7 @@
           ss.hidden = id !== 'simple';
         }
         const lay = $('.layout');
-        if (lay) lay.classList.toggle('no-side', id === 'overview' || id === 'users' || id === 'providers');
+        if (lay) lay.classList.toggle('no-side', id === 'overview' || id === 'users' || id === 'providers' || id === 'modules');
         updateSaveBtn();
       }
 
@@ -3957,6 +4023,7 @@
       async function saveActiveConfig() {
         const id = activePanelId();
         if (id === 'users') return saveUsersJson();
+        if (id === 'modules') return saveModules();
         if (id === 'providers') return saveProviders();
         if (id === 'simple') return saveSimpleSections(simpleChangedWraps());
         if (id === 'init') return saveFullInit();
@@ -3968,8 +4035,8 @@
         const id = activePanelId();
         const btn = $('#saveInitBtn');
         if (!btn) return;
-        btn.style.display = (id === 'simple' || id === 'providers' || id === 'init' || id === 'users') ? '' : 'none';
-        const n = id === 'simple' ? simpleChangedControls($('#simpleMount')).length : (id === 'providers' ? pvChangeCount() : 0);
+        btn.style.display = (id === 'simple' || id === 'providers' || id === 'modules' || id === 'init' || id === 'users') ? '' : 'none';
+        const n = id === 'simple' ? simpleChangedControls($('#simpleMount')).length : (id === 'providers' ? pvChangeCount() : (id === 'modules' ? modChangeCount() : 0));
         $('#saveInitBtn .btn-count').textContent = n > 0 ? ' (' + n + ')' : '';
         $('#unsavedDot').classList.toggle('visible', n > 0);
       }
@@ -3996,10 +4063,12 @@
           await loadConfigs();
           await loadUsersJson();
           await loadHints();
+          await loadModCatalog();
           renderSections();
           renderSimpleSections();
           provChanges = {};
           renderProviders();
+          renderModules(false);
           renderOverview();
           updateSaveBtn();
         } catch (e) {
@@ -4107,16 +4176,18 @@
       function syncLangBtn() { $('#langBtn').textContent = hintLang.toUpperCase(); }
 
       $('#langBtn').addEventListener('click', async () => {
-        if ((simpleChangedControls($('#simpleMount')).length > 0 || pvChangeCount() > 0) &&
+        if ((simpleChangedControls($('#simpleMount')).length > 0 || pvChangeCount() > 0 || modChangeCount() > 0) &&
           !(await showConfirm(tr('Сменить язык?', 'Switch language?'),
             tr('Несохранённые правки будут потеряны.', 'Unsaved edits will be lost.'))))
           return;
         provChanges = {};
+        modState = null;
         hintLang = hintLang === 'en' ? 'ru' : 'en';
         try { localStorage.setItem('ap_lang', hintLang); } catch (e) { }
         syncLangBtn();
         renderSimpleSections();
         renderProviders();
+        renderModules(false);
         renderOverview();
         updateSaveBtn();
       });
@@ -4356,6 +4427,442 @@
         showToast(tr('init.conf заменён', 'init.conf replaced'), 'ok');
         await refresh();
       });
+
+      /* ── Plus 7: модули (BaseModule) и плагины Lampa (LampaWeb) ── */
+      let modCatalog = {};
+      let modState = null, modInit0 = null, modFilter = '', modVerifyMsg = '';
+      const modOpen = { how: false, load: false };   // состояние раскрытых блоков переживает перерисовку
+
+      async function loadModCatalog() {
+        try {
+          const r = await api('/adminpanel/api/modules-catalog');
+          modCatalog = r.ok ? await r.json() : {};
+        } catch (e) { modCatalog = {}; }
+      }
+
+      const mdArr = v => Array.isArray(v) ? v.map(String) : [];
+      const mdLow = s => String(s).toLowerCase();
+      const mdLang = o => (o && (o[hintLang] || o.ru)) || '';
+      function mdEl(tag, cls, text) {
+        const e = document.createElement(tag);
+        if (cls) e.className = cls;
+        if (text !== undefined) e.textContent = text;
+        return e;
+      }
+
+      function modBuild() {
+        const bm = currentObj.BaseModule || {}, ibm = initObj.BaseModule || {};
+        const lw = currentObj.LampaWeb || {};
+        const st = {
+          skip: mdArr(bm.SkipModules),
+          skipInit: mdArr(ibm.SkipModules),
+          load: mdArr(bm.LoadModules),
+          plugins: Object.assign({}, lw.initPlugins || {}),
+          custom: JSON.parse(JSON.stringify(Array.isArray(lw.customPlugins) ? lw.customPlugins : [])),
+          gate: !!(lw.telegramAuthGate && lw.telegramAuthGate.enabled)
+        };
+        modInit0 = JSON.parse(JSON.stringify(st));
+        return st;
+      }
+
+      const mdSkipped = (st, name) => st.skip.some(s => mdLow(s) === mdLow(name));
+      function mdSetSkipped(st, name, on) {
+        st.skip = st.skip.filter(s => mdLow(s) !== mdLow(name));
+        if (on) st.skip.push(name);
+      }
+      const mdPlug = (st, k) => !!st.plugins[k];
+
+      function modSkipDiff() {
+        const a = new Set(modInit0.skip.map(mdLow)), b = new Set(modState.skip.map(mdLow));
+        const added = modState.skip.filter(s => !a.has(mdLow(s)));
+        const removed = modInit0.skip.filter(s => !b.has(mdLow(s)));
+        return { added: added, removed: removed };
+      }
+
+      function modPluginChanges() {
+        return (modCatalog.plugins || []).filter(p => mdPlug(modState, p.key) !== !!modInit0.plugins[p.key]).map(p => p.key);
+      }
+
+      function modChangeCount() {
+        if (!modState) return 0;
+        const d = modSkipDiff();
+        let n = d.added.length + d.removed.length + modPluginChanges().length;
+        if (JSON.stringify(modState.load) !== JSON.stringify(modInit0.load)) n++;
+        if (JSON.stringify(modState.custom) !== JSON.stringify(modInit0.custom)) n++;
+        if (modState.gate !== modInit0.gate) n++;
+        return n;
+      }
+
+      // Проверка совместимости: правила и зависимости из modules.json, подтверждены кодом/документацией (см. поле src)
+      function modIssues() {
+        const st = modState, out = [];
+        const cat = modCatalog, byName = {};
+        (cat.modules || []).forEach(m => { byName[m.name] = m; });
+        const on = n => !mdSkipped(st, n);
+        const add = (level, text, action) => out.push({ level: level, text: text, action: action });
+        const T = o => mdLang(o);
+
+        (cat.rules || []).forEach(r => {
+          if (r.id === 'qr-gate' && on('QRAuth') && st.gate) add('err', T(r));
+          if (r.id === 'bots') {
+            const act = r.modules.filter(on);
+            if (act.length >= 2) add('warn', T(r) + ' (' + act.join(', ') + ')');
+          }
+          if (r.id === 'qr-vs-tg' && on(r.a) && r.b.some(on)) add('info', T(r));
+          if (r.id === 'tg-pair' && on('TelegramAuthBot') && !on('TelegramAuth'))
+            add('warn', T(r), { label: tr('Включить TelegramAuth', 'Enable TelegramAuth'), run: () => mdSetSkipped(st, 'TelegramAuth', false) });
+          if (r.id === 'sync-over' && mdPlug(st, 'sync') && (mdPlug(st, 'bookmark') || mdPlug(st, 'timecode')))
+            add('info', T(r), { label: tr('Выключить лишние', 'Turn them off'), run: () => { st.plugins.bookmark = false; st.plugins.timecode = false; } });
+        });
+
+        const nowSkipped = new Set(modSkipDiff().added.map(mdLow));
+        Object.keys(cat.critical || {}).forEach(n => {
+          if (mdSkipped(st, n) && (n === 'AdminPanelPlus' || nowSkipped.has(mdLow(n))))
+            add(n === 'AdminPanelPlus' ? 'err' : 'warn', '«' + n + '»: ' + T(cat.critical[n]));
+        });
+
+        (cat.plugins || []).forEach(p => {
+          if (!mdPlug(st, p.key) || !p.module) return;
+          const label = tr('Плагин «', 'Plugin “') + p.key + tr('»: ', '”: ');
+          if (mdSkipped(st, p.module)) {
+            add('warn', label + tr('модуль ', 'module ') + p.module + tr(' пропущен, плагин не появится в Lampa.', ' is skipped, the plugin will not appear in Lampa.'),
+              { label: tr('Включить модуль', 'Enable module'), run: () => mdSetSkipped(st, p.module, false) });
+          } else if ((byName[p.module] || {}).manifestOff) {
+            add('info', label + tr('у модуля ', 'module ') + p.module + tr(' в репозитории manifest.json enable:false. Нужна копия с enable:true.', ' ships with manifest.json enable:false. A copy with enable:true is needed.'));
+          }
+          if ((p.key === 'bookmark' || p.key === 'timecode') && mdPlug(st, 'sync'))
+            add('info', label + tr('не используется: sync уже подключает его сам.', 'unused: sync already loads it itself.'));
+        });
+
+        st.skip.forEach(s => {
+          if (/[*?[\]().+^$|\\{}]/.test(s))
+            add('warn', '«' + s + '»: ' + tr('SkipModules сравнивает только точные имена (без regex), такая запись ничего не пропустит.', 'SkipModules compares exact names only (no regex), so this entry skips nothing.'));
+        });
+
+        if (st.load.length === 0)
+          add('err', tr('LoadModules пуст: по коду Startup.cs ни один модуль из папок mods/ и module/ не будет скомпилирован.', 'LoadModules is empty: per Startup.cs no module from mods/ or module/ will be compiled.'));
+        else if (st.load[0] !== '.*')
+          add('info', tr('LoadModules не начинается с «.*»: загрузятся только модули, подпадающие под эти записи. Проверьте, что нужные включены.', 'LoadModules does not start with “.*”: only modules matching these entries load. Make sure the ones you need are covered.'));
+        st.load.forEach(s => {
+          if (/[*?[]/.test(s)) { try { new RegExp(s); } catch (e) { add('err', '«' + s + '»: ' + tr('некорректное регулярное выражение.', 'invalid regular expression.')); } }
+        });
+
+        const urls = {};
+        const builtin = {};
+        (cat.plugins || []).forEach(p => { if (p.path && mdPlug(st, p.key)) builtin[p.path] = p.key; });
+        st.custom.forEach((c, i) => {
+          const u = String(c.url || '').trim();
+          if (!u) { add('warn', tr('Свой плагин №', 'Custom plugin #') + (i + 1) + tr(': не указан адрес.', ': no URL.')); return; }
+          if (!/^(https?:\/\/|\{localhost\})/i.test(u)) add('warn', '«' + u + '»: ' + tr('адрес должен начинаться с http(s):// или {localhost}.', 'the URL must start with http(s):// or {localhost}.'));
+          if (urls[u]) add('warn', '«' + u + '»: ' + tr('указан дважды.', 'listed twice.'));
+          urls[u] = 1;
+          const m = /\{localhost\}\/([a-z0-9_-]+)(?:\.js|\/js\/)/i.exec(u);
+          if (m && builtin[mdLow(m[1])] && Number(c.status) === 1)
+            add('info', '«' + u + '»: ' + tr('дублирует встроенный плагин «', 'duplicates the built-in plugin “') + builtin[mdLow(m[1])] + tr('»; клиент не добавит повтор.', '”; the client will not add it twice.'));
+        });
+        return out;
+      }
+
+      function modRenderRows(host, items) {
+        const cat = modCatalog, st = modState;
+        const groups = cat.groups || {};
+        Object.keys(groups).forEach(gid => {
+          const list = items.filter(m => m.group === gid);
+          if (!list.length) return;
+          const gh = mdEl('div', 'md-gh', mdLang(groups[gid]));
+          if (groups[gid].note) gh.appendChild(mdEl('span', 'md-gnote', mdLang(groups[gid].note)));
+          host.appendChild(gh);
+          list.forEach(m => {
+            const skipped = mdSkipped(st, m.name);
+            const row = mdEl('div', 'md-row' + (skipped ? ' off' : ''));
+            row.dataset.name = m.name;
+            const nm = mdEl('div', 'md-name');
+            nm.appendChild(mdEl('b', '', m.name));
+            nm.appendChild(mdEl('span', 'md-desc', mdLang(m)));
+            if (m.note) nm.appendChild(mdEl('span', 'md-desc md-note', mdLang(m.note)));
+            row.appendChild(nm);
+            const bd = mdEl('div', 'md-badges');
+            if (skipped && !st.skipInit.some(s => mdLow(s) === mdLow(m.name))) bd.appendChild(mdEl('span', 'md-badge', tr('из base.conf', 'from base.conf')));
+            if (m.manifestOff) bd.appendChild(mdEl('span', 'md-badge warn', tr('manifest: enable=false', 'manifest: enable=false')));
+            row.appendChild(bd);
+            const sw = mdEl('label', 'pv-sw');
+            sw.title = tr('Загружать модуль (выключено = в SkipModules)', 'Load the module (off = in SkipModules)');
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.checked = !skipped;
+            cb.setAttribute('aria-label', m.name);
+            cb.addEventListener('change', () => { mdSetSkipped(st, m.name, !cb.checked); renderModules(true); });
+            sw.appendChild(cb);
+            sw.appendChild(document.createElement('span'));
+            row.appendChild(sw);
+            host.appendChild(row);
+          });
+        });
+      }
+
+      function renderModules(keep) {
+        const mount = $('#modMount');
+        if (!mount) return;
+        if (!modState || !keep) modState = modBuild();
+        const st = modState, cat = modCatalog;
+        mount.innerHTML = '';
+        $('#modIntro').textContent = tr(
+          'Какие модули загружать и какие плагины Lampa подключать. Проверка совместимости обновляется по мере правок.',
+          'Which modules to load and which Lampa plugins to attach. The compatibility check updates as you edit.');
+        if (!cat.modules) {
+          mount.appendChild(mdEl('div', 'pv-empty', tr('Каталог модулей не загрузился (modules.json).', 'The module catalog did not load (modules.json).')));
+          return;
+        }
+
+        // проверка совместимости
+        const iss = modIssues();
+        const box = mdEl('div', 'md-issues');
+        if (modVerifyMsg) box.appendChild(mdEl('div', 'md-issue warn', modVerifyMsg));
+        iss.sort((a, b) => ({ err: 0, warn: 1, info: 2 }[a.level] - { err: 0, warn: 1, info: 2 }[b.level])).forEach(i => {
+          const r = mdEl('div', 'md-issue ' + i.level);
+          r.appendChild(mdEl('span', '', ({ err: '✕ ', warn: '! ', info: 'i ' }[i.level]) + i.text));
+          if (i.action) {
+            const b = mdEl('button', 'btn btn-ghost btn-sm', i.action.label);
+            b.type = 'button';
+            b.addEventListener('click', () => { i.action.run(); renderModules(true); updateSaveBtn(); });
+            r.appendChild(b);
+          }
+          box.appendChild(r);
+        });
+        if (!iss.length && !modVerifyMsg) box.appendChild(mdEl('div', 'md-issue ok', tr('Проблем совместимости не найдено.', 'No compatibility problems found.')));
+        mount.appendChild(box);
+
+        // как это работает
+        const how = mdEl('details', 'md-how');
+        how.open = modOpen.how;
+        how.addEventListener('toggle', () => { modOpen.how = how.open; });
+        how.appendChild(mdEl('summary', '', tr('Как работает SkipModules (проверено по коду)', 'How SkipModules works (checked in code)')));
+        const ul = mdEl('ul');
+        [[tr('Имена сравниваются точно, без учёта регистра; regex не поддерживается (в документации указано иначе, код Startup.cs этого не делает). Имя группы (например OnlineRUS) пропускает все её модули.',
+             'Names are compared exactly, case-insensitive; regex is not supported (the docs say otherwise, Startup.cs does not do it). A group name (e.g. OnlineRUS) skips all its modules.')],
+         [tr('Нужен перезапуск контейнера. Готовые .dll в mods/ и module/ этим списком не фильтруются.', 'A container restart is needed. Prebuilt .dll files in mods/ and module/ are not filtered by this list.')],
+         [tr('Одного снятия с SkipModules мало, если в manifest.json модуля enable:false: нужна копия модуля с enable:true.', 'Removing a module from SkipModules is not enough if its manifest.json has enable:false: you need a copy with enable:true.')],
+         [tr('Записи из base.conf и init.conf могут складываться. Поэтому после сохранения панель проверяет итоговый список и сообщает, если модуль остался пропущенным.', 'Entries from base.conf and init.conf may be combined. So after saving the panel checks the effective list and tells you if a module stayed skipped.')]
+        ].forEach(x => ul.appendChild(mdEl('li', '', x[0])));
+        how.appendChild(ul);
+        mount.appendChild(how);
+
+        // модули
+        mount.appendChild(mdEl('h3', 'md-h', tr('Модули (BaseModule.SkipModules)', 'Modules (BaseModule.SkipModules)')));
+        const q = modFilter.trim().toLowerCase();
+        const shown = (cat.modules || []).filter(m => !q || mdLow(m.name).indexOf(q) >= 0 || mdLow(mdLang(m)).indexOf(q) >= 0);
+        const mods = mdEl('div', 'md-list');
+        modRenderRows(mods, shown);
+        if (!shown.length) mods.appendChild(mdEl('div', 'pv-empty', tr('Ничего не найдено.', 'Nothing found.')));
+        mount.appendChild(mods);
+
+        // свои записи
+        const known = new Set((cat.modules || []).map(m => mdLow(m.name)));
+        const extra = st.skip.filter(s => !known.has(mdLow(s)));
+        const ex = mdEl('div', 'md-extra');
+        ex.appendChild(mdEl('div', 'md-gh', tr('Другие записи в SkipModules', 'Other SkipModules entries')));
+        const chips = mdEl('div', 'md-chips');
+        extra.forEach(s => {
+          const c = mdEl('span', 'md-chip', s);
+          const x = mdEl('button', '', '×');
+          x.type = 'button';
+          x.title = tr('Убрать', 'Remove');
+          x.addEventListener('click', () => { mdSetSkipped(st, s, false); renderModules(true); });
+          c.appendChild(x);
+          chips.appendChild(c);
+        });
+        if (!extra.length) chips.appendChild(mdEl('span', 'md-desc', tr('нет', 'none')));
+        ex.appendChild(chips);
+        const addRow = mdEl('div', 'md-add');
+        const inp = mdEl('input', 'pv-in');
+        inp.placeholder = tr('Имя модуля или папки, например Collaps', 'Module or folder name, e.g. Collaps');
+        inp.setAttribute('aria-label', inp.placeholder);
+        const ab = mdEl('button', 'btn btn-ghost btn-sm', tr('Добавить', 'Add'));
+        ab.type = 'button';
+        const doAdd = () => {
+          const v = inp.value.trim();
+          if (!v) return;
+          if (!mdSkipped(st, v)) st.skip.push(v);
+          renderModules(true);
+        };
+        ab.addEventListener('click', doAdd);
+        inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doAdd(); } });
+        addRow.appendChild(inp);
+        addRow.appendChild(ab);
+        ex.appendChild(addRow);
+        mount.appendChild(ex);
+
+        // LoadModules
+        const ld = mdEl('details', 'md-how');
+        ld.open = modOpen.load;
+        ld.addEventListener('toggle', () => { modOpen.load = ld.open; });
+        ld.appendChild(mdEl('summary', '', 'LoadModules (' + st.load.length + ')'));
+        ld.appendChild(mdEl('div', 'md-desc', tr('Одна запись на строку: точное имя, имя группы или regex. Список «.*» первым элементом разрешает всё.', 'One entry per line: exact name, group name or regex. “.*” as the first element allows everything.')));
+        const ta = mdEl('textarea', 'pv-in md-ta');
+        ta.rows = 4;
+        ta.spellcheck = false;
+        ta.value = st.load.join('\n');
+        ta.addEventListener('change', () => { st.load = ta.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean); renderModules(true); updateSaveBtn(); });
+        ld.appendChild(ta);
+        mount.appendChild(ld);
+
+        // плагины Lampa
+        mount.appendChild(mdEl('h3', 'md-h', tr('Плагины Lampa (LampaWeb.initPlugins)', 'Lampa plugins (LampaWeb.initPlugins)')));
+        const pl = mdEl('div', 'md-list');
+        (cat.plugins || []).forEach(p => {
+          const modOff = p.module && mdSkipped(st, p.module);
+          const unused = (p.key === 'bookmark' || p.key === 'timecode') && mdPlug(st, 'sync');
+          const row = mdEl('div', 'md-row' + (modOff || unused ? ' off' : ''));
+          const nm = mdEl('div', 'md-name');
+          nm.appendChild(mdEl('b', '', p.key));
+          nm.appendChild(mdEl('span', 'md-desc', mdLang(p)));
+          row.appendChild(nm);
+          const bd = mdEl('div', 'md-badges');
+          if (p.module) bd.appendChild(mdEl('span', 'md-badge' + (modOff ? ' warn' : ''), tr('модуль ', 'module ') + p.module + (modOff ? tr(': пропущен', ': skipped') : '')));
+          if (unused) bd.appendChild(mdEl('span', 'md-badge', tr('не используется', 'unused')));
+          row.appendChild(bd);
+          const sw = mdEl('label', 'pv-sw');
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.checked = mdPlug(st, p.key);
+          cb.setAttribute('aria-label', p.key);
+          cb.addEventListener('change', () => { st.plugins[p.key] = cb.checked; renderModules(true); updateSaveBtn(); });
+          sw.appendChild(cb);
+          sw.appendChild(document.createElement('span'));
+          row.appendChild(sw);
+          pl.appendChild(row);
+        });
+        const gr = mdEl('div', 'md-row');
+        const gnm = mdEl('div', 'md-name');
+        gnm.appendChild(mdEl('b', '', 'telegramAuthGate.enabled'));
+        gnm.appendChild(mdEl('span', 'md-desc', tr('Telegram-гейт входа (подменяет deny.js; нужны accsdb и botUsername)', 'Telegram sign-in gate (replaces deny.js; needs accsdb and botUsername)')));
+        gr.appendChild(gnm);
+        gr.appendChild(mdEl('div', 'md-badges'));
+        const gsw = mdEl('label', 'pv-sw');
+        const gcb = document.createElement('input');
+        gcb.type = 'checkbox';
+        gcb.checked = st.gate;
+        gcb.setAttribute('aria-label', 'telegramAuthGate.enabled');
+        gcb.addEventListener('change', () => { st.gate = gcb.checked; renderModules(true); updateSaveBtn(); });
+        gsw.appendChild(gcb);
+        gsw.appendChild(document.createElement('span'));
+        gr.appendChild(gsw);
+        pl.appendChild(gr);
+        mount.appendChild(pl);
+
+        // свои плагины
+        mount.appendChild(mdEl('h3', 'md-h', tr('Свои плагины (LampaWeb.customPlugins)', 'Custom plugins (LampaWeb.customPlugins)')));
+        const cl = mdEl('div', 'md-list');
+        st.custom.forEach((c, i) => {
+          const row = mdEl('div', 'md-cust');
+          const f = (key, ph, cls) => {
+            const x = mdEl('input', 'pv-in ' + (cls || ''));
+            x.placeholder = ph;
+            x.setAttribute('aria-label', ph);
+            x.value = c[key] == null ? '' : String(c[key]);
+            x.addEventListener('change', () => { c[key] = x.value.trim(); renderModules(true); updateSaveBtn(); });
+            return x;
+          };
+          row.appendChild(f('name', tr('Название', 'Name')));
+          row.appendChild(f('url', 'URL', 'md-url'));
+          const sw = mdEl('label', 'pv-sw');
+          sw.title = tr('Включён (status = 1)', 'Enabled (status = 1)');
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.checked = Number(c.status) === 1;
+          cb.setAttribute('aria-label', tr('Включён', 'Enabled'));
+          cb.addEventListener('change', () => { c.status = cb.checked ? 1 : 0; renderModules(true); updateSaveBtn(); });
+          sw.appendChild(cb);
+          sw.appendChild(document.createElement('span'));
+          row.appendChild(sw);
+          const del = mdEl('button', 'btn btn-danger btn-sm', tr('Удалить', 'Delete'));
+          del.type = 'button';
+          del.addEventListener('click', () => { st.custom.splice(i, 1); renderModules(true); updateSaveBtn(); });
+          row.appendChild(del);
+          cl.appendChild(row);
+        });
+        const nb = mdEl('button', 'btn btn-ghost btn-sm', tr('+ Добавить плагин', '+ Add plugin'));
+        nb.type = 'button';
+        nb.addEventListener('click', () => { st.custom.push({ url: '', status: 1, name: '', author: '' }); renderModules(true); updateSaveBtn(); });
+        cl.appendChild(nb);
+        mount.appendChild(cl);
+        updateSaveBtn();
+      }
+
+      async function saveModules() {
+        if (!modState || modChangeCount() === 0) { showToast(tr('Изменений нет', 'No changes'), 'ok'); return; }
+        const st = modState, d = modSkipDiff(), rows = [];
+        d.added.forEach(n => rows.push({ path: 'BaseModule.SkipModules', fromText: n + ': ' + tr('загружается', 'loads'), toText: tr('пропускать', 'skip') }));
+        d.removed.forEach(n => rows.push({ path: 'BaseModule.SkipModules', fromText: n + ': ' + tr('пропускался', 'was skipped'), toText: tr('загружать', 'load') }));
+        const loadChanged = JSON.stringify(st.load) !== JSON.stringify(modInit0.load);
+        if (loadChanged) rows.push({ path: 'BaseModule.LoadModules', from: modInit0.load, to: st.load });
+        const pk = modPluginChanges();
+        pk.forEach(k => rows.push({ path: 'LampaWeb.initPlugins.' + k, from: !!modInit0.plugins[k], to: mdPlug(st, k) }));
+        const customChanged = JSON.stringify(st.custom) !== JSON.stringify(modInit0.custom);
+        if (customChanged) rows.push({ path: 'LampaWeb.customPlugins', fromText: modInit0.custom.length + tr(' шт.', ' items'), toText: st.custom.length + tr(' шт.', ' items') });
+        if (st.gate !== modInit0.gate) rows.push({ path: 'LampaWeb.telegramAuthGate.enabled', from: modInit0.gate, to: st.gate });
+
+        const errs = modIssues().filter(i => i.level === 'err').map(i => '• ' + i.text);
+        const msg = (errs.length ? tr('Есть серьёзные замечания:\n', 'Serious issues:\n') + errs.join('\n') + '\n' : '')
+          + ((d.added.length || d.removed.length || loadChanged) ? tr('Изменение состава модулей применится после перезапуска контейнера.', 'Module changes apply after a container restart.') : '');
+        if (!(await showConfirm(tr('Что изменится', 'What will change'), msg, diffNode(rows)))) return;
+
+        const reqs = [];
+        if (d.added.length || d.removed.length || loadChanged) {
+          const body = isPlainObject(initObj.BaseModule) ? JSON.parse(JSON.stringify(initObj.BaseModule)) : {};
+          body.SkipModules = st.skip.slice();
+          if (loadChanged) body.LoadModules = st.load.slice();
+          reqs.push(['BaseModule', JSON.stringify(body)]);
+        }
+        if (pk.length || customChanged || st.gate !== modInit0.gate) {
+          const body = isPlainObject(initObj.LampaWeb) ? JSON.parse(JSON.stringify(initObj.LampaWeb)) : {};
+          if (pk.length) {
+            body.initPlugins = isPlainObject(body.initPlugins) ? body.initPlugins : {};
+            pk.forEach(k => { body.initPlugins[k] = mdPlug(st, k); });
+          }
+          if (customChanged) body.customPlugins = st.custom.map(c => ({ url: String(c.url || ''), status: Number(c.status) === 1 ? 1 : 0, name: c.name || '', author: c.author || '' }));
+          if (st.gate !== modInit0.gate) body.telegramAuthGate = Object.assign({}, isPlainObject(body.telegramAuthGate) ? body.telegramAuthGate : {}, { enabled: st.gate });
+          reqs.push(['LampaWeb', JSON.stringify(body)]);
+        }
+        const wantSkip = st.skip.slice();
+        const touchedModules = reqs.some(r => r[0] === 'BaseModule');
+        let done = 0;
+        for (const [key, raw] of reqs) {
+          const res = await api('/adminpanel/api/init/section/' + encodeURIComponent(key), {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: raw
+          });
+          if (!res.ok) {
+            showToast('«' + key + '»: ' + (await errText(res)), 'err');
+            if (done) await refresh();
+            return;
+          }
+          done++;
+        }
+        if (touchedModules) markRestart(['BaseModule.SkipModules']);
+        showToast(tr('Сохранено. ', 'Saved. ') + (touchedModules ? tr('Нужен перезапуск контейнера.', 'A container restart is needed.') : ''), touchedModules ? 'warn' : 'ok');
+        modVerifyMsg = '';
+        await refresh();
+        if (touchedModules) modVerify(wantSkip);
+      }
+
+      // После записи init.conf даём серверу перечитать конфиг и сверяем итоговый список с тем, что записали
+      async function modVerify(want) {
+        await new Promise(r => setTimeout(r, 2500));
+        try {
+          await loadConfigs();
+          const eff = mdArr((currentObj.BaseModule || {}).SkipModules);
+          const w = new Set(want.map(mdLow));
+          const stuck = eff.filter(s => !w.has(mdLow(s)));
+          modVerifyMsg = stuck.length
+            ? tr('После сохранения сервер всё ещё пропускает: ', 'After saving the server still skips: ') + stuck.join(', ')
+              + tr('. Если сервер просто не успел перечитать конфиг, нажмите «Обновить». Иначе эти имена приходят из base.conf: его список складывается со списком init.conf, и убрать их через init.conf нельзя (нужна правка base.conf).', '. If the server just has not re-read the config yet, press Refresh. Otherwise these names come from base.conf: its list is combined with the init.conf list and cannot be reduced via init.conf (base.conf has to be edited).')
+            : '';
+          if (stuck.length) showToast(tr('Часть модулей осталась в SkipModules (base.conf)', 'Some modules stayed in SkipModules (base.conf)'), 'warn');
+          renderModules(false);
+        } catch (e) { }
+      }
+
+      $('#modSearch').addEventListener('input', e => { modFilter = e.target.value; renderModules(true); });
 
       /* ── Plus 3: провайдеры таблицей ── */
       let provChanges = {};      // { ключ: { поле: значение|null } }; null = убрать поле из init.conf
@@ -4742,10 +5249,12 @@
           await loadConfigs();
           await loadUsersJson();
           await loadHints();
+          await loadModCatalog();
           renderSections();
           renderSimpleSections();
           provChanges = {};
           renderProviders();
+          renderModules(false);
           renderOverview();
           updateSaveBtn();
         } catch (e) {

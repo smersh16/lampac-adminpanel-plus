@@ -1,0 +1,537 @@
+{
+ "_meta": {
+  "source": "lampac-nextgen/lampac main bfef516 (2026-11-10)",
+  "files": [
+   "Core/Startup.cs",
+   "Shared/Models/AppConf/BaseModule.cs",
+   "Modules/LampaWeb/LampaPluginBuilder.cs",
+   "Modules/LampaWeb/Models/InitPlugins.cs",
+   "docs/modules/community.mdx"
+  ]
+ },
+ "groups": {
+  "client": {
+   "ru": "Клиент и контент",
+   "en": "Client and content"
+  },
+  "media": {
+   "ru": "Медиа",
+   "en": "Media"
+  },
+  "sync": {
+   "ru": "Синхронизация",
+   "en": "Sync"
+  },
+  "proxy": {
+   "ru": "Прокси",
+   "en": "Proxies"
+  },
+  "admin": {
+   "ru": "Администрирование",
+   "en": "Administration"
+  },
+  "integr": {
+   "ru": "Интеграции и вход",
+   "en": "Integrations and sign-in"
+  },
+  "sources": {
+   "ru": "Группы источников",
+   "en": "Source groups",
+   "note": {
+    "ru": "Имя группы в SkipModules пропускает сразу все её модули. Отдельный источник можно добавить в «Другие записи» по имени его папки.",
+    "en": "A group name in SkipModules skips all its modules at once. A single source can be added under “Other entries” by its folder name."
+   }
+  }
+ },
+ "modules": [
+  {
+   "name": "Online",
+   "group": "client",
+   "ru": "VOD-плагин /online.js и агрегатор /lite/*",
+   "en": "VOD plugin /online.js and /lite/* aggregator"
+  },
+  {
+   "name": "SISI",
+   "group": "client",
+   "ru": "Раздел 18+ /sisi.js",
+   "en": "Adult section /sisi.js"
+  },
+  {
+   "name": "LampaWeb",
+   "group": "client",
+   "ru": "Веб-клиент Lampa, /lampainit.js, /on.js, плагины",
+   "en": "Lampa web client, /lampainit.js, /on.js, plugins"
+  },
+  {
+   "name": "NextHUB",
+   "group": "client",
+   "ru": "YAML-витрина 18+ /nexthub",
+   "en": "YAML adult showcase /nexthub"
+  },
+  {
+   "name": "LampacApk",
+   "group": "client",
+   "ru": "Сборка Android APK под адрес сервера",
+   "en": "Android APK build for the server address"
+  },
+  {
+   "name": "Music",
+   "group": "client",
+   "ru": "Каталог и стримы музыки",
+   "en": "Music catalog and streams",
+   "manifestOff": true
+  },
+  {
+   "name": "WatchTogether",
+   "group": "client",
+   "ru": "Совместный просмотр",
+   "en": "Synchronized watching",
+   "manifestOff": true
+  },
+  {
+   "name": "GStreamer",
+   "group": "media",
+   "ru": "HLS/fMP4-транскодинг /gst/* (нужен gst.enable: true)",
+   "en": "HLS/fMP4 transcoding /gst/* (needs gst.enable: true)"
+  },
+  {
+   "name": "TorrServer",
+   "group": "media",
+   "ru": "Торрент-прокси /ts/*",
+   "en": "Torrent proxy /ts/*"
+  },
+  {
+   "name": "JacRed",
+   "group": "media",
+   "ru": "Агрегатор поиска раздач /api/v1.0, /api/v2.0",
+   "en": "Torrent search aggregator /api/v1.0, /api/v2.0"
+  },
+  {
+   "name": "PidTor",
+   "group": "media",
+   "ru": "Торрент-источник для Online",
+   "en": "Torrent source for Online"
+  },
+  {
+   "name": "DLNA",
+   "group": "media",
+   "ru": "DLNA/UPnP-медиасервер",
+   "en": "DLNA/UPnP media server"
+  },
+  {
+   "name": "Catalog",
+   "group": "media",
+   "ru": "Браузер YAML-каталогов /catalog/",
+   "en": "YAML catalog browser /catalog/"
+  },
+  {
+   "name": "Tracks",
+   "group": "media",
+   "ru": "Субтитры и дорожки, /tracks.js, /ffprobe",
+   "en": "Subtitles and tracks, /tracks.js, /ffprobe",
+   "manifestOff": true
+  },
+  {
+   "name": "Transcoding",
+   "group": "media",
+   "ru": "Устаревший FFmpeg-транскодинг /transcoding/",
+   "en": "Legacy FFmpeg transcoding /transcoding/",
+   "manifestOff": true
+  },
+  {
+   "name": "Sync",
+   "group": "sync",
+   "ru": "Закладки и оркестрация sync.js",
+   "en": "Bookmarks and the sync.js orchestrator"
+  },
+  {
+   "name": "TimeCode",
+   "group": "sync",
+   "ru": "Позиции воспроизведения /timecode/*",
+   "en": "Playback positions /timecode/*"
+  },
+  {
+   "name": "Storage",
+   "group": "sync",
+   "ru": "Хранилище /storage/*, /backup.js",
+   "en": "Storage /storage/*, /backup.js"
+  },
+  {
+   "name": "SyncEvents",
+   "group": "sync",
+   "ru": "WebSocket-трансляция событий синхронизации",
+   "en": "WebSocket event broadcast for sync"
+  },
+  {
+   "name": "TmdbProxy",
+   "group": "proxy",
+   "ru": "Прокси TMDB",
+   "en": "TMDB proxy"
+  },
+  {
+   "name": "CubProxy",
+   "group": "proxy",
+   "ru": "Прокси CUB",
+   "en": "CUB proxy"
+  },
+  {
+   "name": "CorsMedia",
+   "group": "proxy",
+   "ru": "CORS-прокси для медиа",
+   "en": "CORS proxy for media"
+  },
+  {
+   "name": "Corseu",
+   "group": "proxy",
+   "ru": "CORS-прокси (eu)",
+   "en": "CORS proxy (eu)"
+  },
+  {
+   "name": "CacheMedia",
+   "group": "proxy",
+   "ru": "Дисковый кеш потоков SISI",
+   "en": "Disk cache of SISI streams"
+  },
+  {
+   "name": "ProxyLimiter",
+   "group": "proxy",
+   "ru": "Лимиты параллельных media-запросов",
+   "en": "Limits for parallel media requests"
+  },
+  {
+   "name": "AdminPanel",
+   "group": "admin",
+   "ru": "Исходная админка /adminpanel",
+   "en": "Original admin panel /adminpanel",
+   "manifestOff": true,
+   "note": {
+    "ru": "Маршруты те же, что у AdminPanelPlus: две панели одновременно включать нельзя.",
+    "en": "Uses the same routes as AdminPanelPlus: never enable both panels together."
+   }
+  },
+  {
+   "name": "DatabaseEditor",
+   "group": "admin",
+   "ru": "Редактор баз Sync и TimeCode",
+   "en": "Sync and TimeCode database editor",
+   "manifestOff": true
+  },
+  {
+   "name": "WebLog",
+   "group": "admin",
+   "ru": "Поток HTTP-запросов /weblog (нужен passwd)",
+   "en": "HTTP request stream /weblog (needs passwd)"
+  },
+  {
+   "name": "Telemetry",
+   "group": "admin",
+   "ru": "Диагностическая телеметрия",
+   "en": "Diagnostic telemetry",
+   "manifestOff": true
+  },
+  {
+   "name": "LogUserRequest-Lite",
+   "group": "admin",
+   "ru": "Статистика Lite-запросов",
+   "en": "Lite request statistics",
+   "manifestOff": true
+  },
+  {
+   "name": "TelegramAuth",
+   "group": "integr",
+   "ru": "HTTP API /tg/auth/*",
+   "en": "HTTP API /tg/auth/*",
+   "manifestOff": true
+  },
+  {
+   "name": "TelegramAuthBot",
+   "group": "integr",
+   "ru": "Бот привязки UID (long-polling)",
+   "en": "UID binding bot (long polling)",
+   "manifestOff": true
+  },
+  {
+   "name": "QRAuth",
+   "group": "integr",
+   "ru": "Экран входа по QR и собственный Telegram-бот",
+   "en": "QR sign-in screen with its own Telegram bot",
+   "manifestOff": true
+  },
+  {
+   "name": "OidcAuth",
+   "group": "integr",
+   "ru": "Вход через OIDC",
+   "en": "OIDC sign-in",
+   "manifestOff": true
+  },
+  {
+   "name": "SeriesNotify",
+   "group": "integr",
+   "ru": "Уведомления о сериях в Telegram (long-polling)",
+   "en": "Telegram episode notifications (long polling)",
+   "manifestOff": true
+  },
+  {
+   "name": "Kit",
+   "group": "integr",
+   "ru": "Зашифрованные учётные данные платных провайдеров",
+   "en": "Encrypted credentials for paid providers"
+  },
+  {
+   "name": "ExternalBind",
+   "group": "integr",
+   "ru": "Внешняя привязка",
+   "en": "External binding",
+   "manifestOff": true
+  },
+  {
+   "name": "ForkPlayerXML",
+   "group": "integr",
+   "ru": "Плейлисты ForkPlayer /fxml",
+   "en": "ForkPlayer playlists /fxml"
+  },
+  {
+   "name": "MsxNative",
+   "group": "integr",
+   "ru": "Клиент MSX",
+   "en": "MSX client"
+  },
+  {
+   "name": "Potok",
+   "group": "integr",
+   "ru": "Служебные маршруты /blue-oyster/*, /naked-gun/*",
+   "en": "Service routes /blue-oyster/*, /naked-gun/*"
+  },
+  {
+   "name": "OnlineRUS",
+   "group": "sources",
+   "ru": "Источники: российские",
+   "en": "Sources: Russian"
+  },
+  {
+   "name": "OnlinePaid",
+   "group": "sources",
+   "ru": "Источники: платные",
+   "en": "Sources: paid"
+  },
+  {
+   "name": "OnlineAnime",
+   "group": "sources",
+   "ru": "Источники: аниме",
+   "en": "Sources: anime"
+  },
+  {
+   "name": "OnlineENG",
+   "group": "sources",
+   "ru": "Источники: английские",
+   "en": "Sources: English"
+  },
+  {
+   "name": "OnlineUKR",
+   "group": "sources",
+   "ru": "Источники: украинские",
+   "en": "Sources: Ukrainian"
+  },
+  {
+   "name": "OnlineGEO",
+   "group": "sources",
+   "ru": "Источники: грузинские",
+   "en": "Sources: Georgian"
+  },
+  {
+   "name": "Adult",
+   "group": "sources",
+   "ru": "Источники 18+ (SISI)",
+   "en": "Adult sources (SISI)"
+  }
+ ],
+ "plugins": [
+  {
+   "key": "online",
+   "module": "Online",
+   "ru": "Онлайн-источники (/online.js)",
+   "en": "Online sources (/online.js)",
+   "path": "online"
+  },
+  {
+   "key": "sisi",
+   "module": "SISI",
+   "ru": "Клубничка 18+ и стартовая страница",
+   "en": "Adult section and start page",
+   "path": "sisi"
+  },
+  {
+   "key": "jacred",
+   "module": "JacRed",
+   "ru": "Свой JacRed вместо jac.red",
+   "en": "Own JacRed instead of jac.red"
+  },
+  {
+   "key": "torrserver",
+   "module": "TorrServer",
+   "ru": "TorrServer",
+   "en": "TorrServer",
+   "path": "ts"
+  },
+  {
+   "key": "tmdbProxy",
+   "module": "TmdbProxy",
+   "ru": "Прокси TMDB",
+   "en": "TMDB proxy",
+   "path": "tmdbproxy"
+  },
+  {
+   "key": "cubProxy",
+   "module": "CubProxy",
+   "ru": "Прокси CUB",
+   "en": "CUB proxy",
+   "path": "cubproxy"
+  },
+  {
+   "key": "sync",
+   "module": "Sync",
+   "ru": "Синхронизация (sync.js; сам подключает закладки и тайм-коды)",
+   "en": "Sync (sync.js; loads bookmarks and timecodes itself)",
+   "path": "sync"
+  },
+  {
+   "key": "bookmark",
+   "module": "Sync",
+   "ru": "Закладки отдельным плагином",
+   "en": "Bookmarks as a separate plugin",
+   "path": "bookmark"
+  },
+  {
+   "key": "timecode",
+   "module": "TimeCode",
+   "ru": "Тайм-коды отдельным плагином",
+   "en": "Timecodes as a separate plugin",
+   "path": "timecode"
+  },
+  {
+   "key": "backup",
+   "module": "Storage",
+   "ru": "Резервное копирование (/backup.js)",
+   "en": "Backup (/backup.js)",
+   "path": "backup"
+  },
+  {
+   "key": "catalog",
+   "module": "Catalog",
+   "ru": "Альтернативные источники каталога",
+   "en": "Alternative catalog sources",
+   "path": "catalog"
+  },
+  {
+   "key": "dlna",
+   "module": "DLNA",
+   "ru": "DLNA",
+   "en": "DLNA",
+   "path": "dlna"
+  },
+  {
+   "key": "tracks",
+   "module": "Tracks",
+   "ru": "Субтитры и дорожки",
+   "en": "Subtitles and tracks",
+   "path": "tracks"
+  },
+  {
+   "key": "transcoding",
+   "module": "Transcoding",
+   "ru": "Транскодинг видео (устаревший)",
+   "en": "Video transcoding (legacy)",
+   "path": "transcoding"
+  },
+  {
+   "key": "watch_together",
+   "module": "WatchTogether",
+   "ru": "Совместный просмотр",
+   "en": "Watch together",
+   "path": "watchtogether"
+  },
+  {
+   "key": "dorama",
+   "module": "",
+   "ru": "Дорамы (не зависит от модулей)",
+   "en": "Dorama section (no module needed)",
+   "path": "dorama"
+  },
+  {
+   "key": "pirate_store",
+   "module": "",
+   "ru": "Магазин плагинов pirate_store (не зависит от модулей)",
+   "en": "pirate_store plugin shop (no module needed)"
+  }
+ ],
+ "rules": [
+  {
+   "id": "qr-gate",
+   "level": "err",
+   "ru": "QRAuth и Telegram-гейт LampaWeb (telegramAuthGate.enabled) несовместимы: гейт подменяет deny.js, и экран QRAuth не показывается.",
+   "en": "QRAuth and the LampaWeb Telegram gate (telegramAuthGate.enabled) are incompatible: the gate replaces deny.js, so the QRAuth screen is not shown.",
+   "src": "docs/modules/community.mdx"
+  },
+  {
+   "id": "bots",
+   "level": "warn",
+   "modules": [
+    "SeriesNotify",
+    "QRAuth",
+    "TelegramAuthBot"
+   ],
+   "ru": "Несколько long-polling ботов включены одновременно: у каждого должен быть свой bot_token, иначе Telegram отвечает 409 Conflict и боты сбивают друг друга.",
+   "en": "Several long-polling bots are enabled together: each needs its own bot_token, otherwise Telegram answers 409 Conflict and they break each other.",
+   "src": "Modules/SeriesNotify/README.md"
+  },
+  {
+   "id": "qr-vs-tg",
+   "level": "info",
+   "a": "QRAuth",
+   "b": [
+    "TelegramAuth",
+    "TelegramAuthBot"
+   ],
+   "ru": "QRAuth — самостоятельная альтернатива связке TelegramAuth + TelegramAuthBot. Обычно нужен один из вариантов.",
+   "en": "QRAuth is a standalone alternative to TelegramAuth + TelegramAuthBot. You normally need only one of them.",
+   "src": "Modules/Community/README.md"
+  },
+  {
+   "id": "tg-pair",
+   "level": "warn",
+   "needs": {
+    "TelegramAuthBot": [
+     "TelegramAuth"
+    ]
+   },
+   "ru": "TelegramAuthBot нужен вместе с TelegramAuth: README требует убрать из SkipModules оба имени.",
+   "en": "TelegramAuthBot is meant to be used with TelegramAuth: the README says to remove both names from SkipModules.",
+   "src": "Modules/Community/TelegramAuthBot/README.md"
+  },
+  {
+   "id": "sync-over",
+   "level": "info",
+   "ru": "Плагин sync уже включает закладки и тайм-коды: отдельные bookmark и timecode не добавляются, даже если включены. Лучше их выключить.",
+   "en": "The sync plugin already includes bookmarks and timecodes: separate bookmark and timecode plugins are not added even when enabled. Better turn them off.",
+   "src": "Modules/LampaWeb/README.md, LampaPluginBuilder.cs"
+  }
+ ],
+ "critical": {
+  "LampaWeb": {
+   "ru": "Без LampaWeb не отдаются веб-клиент, /lampainit.js и /on.js: плагины в Lampa не подключатся.",
+   "en": "Without LampaWeb the web client, /lampainit.js and /on.js are not served: no plugins reach Lampa."
+  },
+  "Online": {
+   "ru": "Без Online пропадают /online.js и /lite/*: источники онлайн-просмотра не работают.",
+   "en": "Without Online, /online.js and /lite/* disappear: online sources stop working."
+  },
+  "SISI": {
+   "ru": "Без SISI пропадает раздел 18+.",
+   "en": "Without SISI the adult section disappears."
+  },
+  "AdminPanelPlus": {
+   "ru": "Это модуль текущей панели: после перезапуска она перестанет открываться, вернуть можно только правкой init.conf вручную.",
+   "en": "This is the module of the current panel: after a restart it will not open, and you can only undo it by editing init.conf by hand."
+  }
+ }
+}

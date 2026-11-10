@@ -90,6 +90,18 @@ public class AdminPanelPlusController : BaseController
         return Content(System.IO.File.ReadAllText(path, Encoding.UTF8), "application/json; charset=utf-8");
     }
 
+    // Каталог модулей и правил совместимости для вкладки «Модули»: modules.json лежит рядом с index.html.
+    [HttpGet]
+    [Route("/adminpanel/api/modules-catalog")]
+    public ActionResult ModulesCatalog()
+    {
+        var path = Path.Combine(ModInit.modpath, "modules.json");
+        if (!System.IO.File.Exists(path))
+            return Content("{}", "application/json; charset=utf-8");
+
+        return Content(System.IO.File.ReadAllText(path, Encoding.UTF8), "application/json; charset=utf-8");
+    }
+
     static JObject LoadCurrentRoot()
     {
         try
