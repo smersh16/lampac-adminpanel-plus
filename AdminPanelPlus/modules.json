@@ -7,7 +7,8 @@
    "Modules/LampaWeb/LampaPluginBuilder.cs",
    "Modules/LampaWeb/Models/InitPlugins.cs",
    "docs/modules/community.mdx"
-  ]
+  ],
+  "regions": "папки Modules/Online{ENG,GEO,Paid,RUS,UKR} на lampac-nextgen/lampac main bfef516; Filmix* и RezkaPrem добавлены вручную (платные, отдельных папок нет)"
  },
  "groups": {
   "client": {
@@ -533,5 +534,89 @@
    "ru": "Это модуль текущей панели: после перезапуска она перестанет открываться, вернуть можно только правкой init.conf вручную.",
    "en": "This is the module of the current panel: after a restart it will not open, and you can only undo it by editing init.conf by hand."
   }
+ },
+ "regions": {
+  "ENG": {
+   "ru": "Английские источники (Modules/OnlineENG)",
+   "en": "English sources (Modules/OnlineENG)"
+  },
+  "GEO": {
+   "ru": "Грузинские источники (Modules/OnlineGEO)",
+   "en": "Georgian sources (Modules/OnlineGEO)"
+  },
+  "Paid": {
+   "ru": "Платные источники (Modules/OnlinePaid)",
+   "en": "Paid sources (Modules/OnlinePaid)"
+  },
+  "RUS": {
+   "ru": "Российские источники (Modules/OnlineRUS)",
+   "en": "Russian sources (Modules/OnlineRUS)"
+  },
+  "UKR": {
+   "ru": "Украинские источники (Modules/OnlineUKR)",
+   "en": "Ukrainian sources (Modules/OnlineUKR)"
+  }
+ },
+ "providerRegion": {
+  "aladin": "RUS",
+  "alloha": "Paid",
+  "ashdi": "UKR",
+  "asiage": "GEO",
+  "autoembed": "ENG",
+  "bamboo": "UKR",
+  "cdnvideohub": "RUS",
+  "collaps": "RUS",
+  "eneyida": "UKR",
+  "fancdn": "RUS",
+  "filmix": "Paid",
+  "filmixpartner": "Paid",
+  "filmixtv": "Paid",
+  "flixcdn": "RUS",
+  "gencit": "RUS",
+  "geosaitebi": "GEO",
+  "getstv": "Paid",
+  "hdvb": "RUS",
+  "hdvbua": "UKR",
+  "hydraflix": "ENG",
+  "iptvonline": "Paid",
+  "iremux": "Paid",
+  "kinobase": "RUS",
+  "kinoflix": "GEO",
+  "kinogo": "RUS",
+  "kinopub": "Paid",
+  "kinoteatrkg": "RUS",
+  "kinotochka": "RUS",
+  "kinoukr": "UKR",
+  "leproduction": "RUS",
+  "lordfilm": "RUS",
+  "mirage": "RUS",
+  "movpi": "ENG",
+  "phantom": "RUS",
+  "pizdatoehd": "RUS",
+  "playembed": "ENG",
+  "redheadsound": "RUS",
+  "rezka": "Paid",
+  "rezkaprem": "Paid",
+  "rgshows": "ENG",
+  "rudub": "RUS",
+  "rutubemovie": "RUS",
+  "sakhtv": "Paid",
+  "smashystream": "ENG",
+  "spectre": "RUS",
+  "tortuga": "UKR",
+  "twoembed": "ENG",
+  "uafilm": "UKR",
+  "uakino": "UKR",
+  "veoveo": "RUS",
+  "vibix": "RUS",
+  "videasy": "ENG",
+  "videodb": "RUS",
+  "videoseed": "RUS",
+  "vidlink": "ENG",
+  "vidsrc": "ENG",
+  "vkmovie": "RUS",
+  "vokino": "Paid",
+  "zetflix": "RUS",
+  "zetflixdb": "RUS"
  }
 }

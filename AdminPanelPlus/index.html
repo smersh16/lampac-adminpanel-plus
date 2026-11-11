@@ -1942,7 +1942,7 @@
     .pv-select { font: inherit; font-size: var(--text-sm); color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 6px 10px; }
     .pv-count { font-size: var(--text-xs); color: var(--text-muted); margin-left: auto; }
     .pv-table { border: 1px solid var(--border); border-radius: var(--r-xl); background: var(--surface); overflow: hidden; }
-    .pv-row { display: grid; grid-template-columns: minmax(130px, 1.1fr) 56px minmax(160px, 2fr) minmax(130px, 1.4fr) 84px; gap: var(--sp-3); align-items: center; padding: 8px var(--sp-4); border-top: 1px solid var(--border-subtle); }
+    .pv-row { display: grid; grid-template-columns: minmax(130px, 1.1fr) 56px minmax(160px, 2fr) minmax(130px, 1.4fr) 84px 140px; gap: var(--sp-3); align-items: center; padding: 8px var(--sp-4); border-top: 1px solid var(--border-subtle); }
     .pv-row.pv-head { border-top: 0; font-size: var(--text-xs); font-weight: 700; color: var(--text-muted); background: var(--surface-2); padding-top: 10px; padding-bottom: 10px; }
     .pv-row.changed { background: var(--accent-glow); box-shadow: inset 3px 0 0 var(--accent); }
     .pv-row.off .pv-name { color: var(--text-muted); }
@@ -1953,6 +1953,17 @@
     .pv-tok { display: flex; gap: 4px; min-width: 0; }
     .pv-tok button { font: inherit; font-size: var(--text-xs); color: var(--text-muted); background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-md); padding: 0 8px; cursor: pointer; }
     .pv-na { color: var(--text-faint); }
+    .pv-reg { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 999px; font-size: var(--text-xs); font-weight: 600; background: var(--accent-dim); color: var(--accent); vertical-align: 1px; cursor: help; }
+    .pv-reg.paid { background: var(--warn-dim); color: var(--warn); }
+    .pv-probe { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: var(--text-xs); color: var(--text-muted); }
+    .pv-probe button { font: inherit; font-size: var(--text-xs); color: var(--text-muted); background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-md); padding: 3px 8px; cursor: pointer; white-space: nowrap; }
+    .pv-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--text-faint); flex-shrink: 0; }
+    .pv-dot.ok { background: var(--ok); }
+    .pv-dot.fail { background: var(--err); }
+    .pv-dot.timeout { background: var(--warn); }
+    .pv-dot.run { background: var(--accent); animation: pvpulse 1s infinite; }
+    @keyframes pvpulse { 50% { opacity: .25; } }
+    .pv-note { font-size: var(--text-xs); color: var(--text-muted); margin: 0 0 var(--sp-3); line-height: 1.5; }
     .pv-sw { position: relative; display: inline-block; width: 40px; height: 22px; }
     .pv-sw input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; z-index: 1; }
     .pv-sw span { position: absolute; inset: 0; border-radius: 11px; background: var(--surface-hover); transition: background var(--dur) var(--ease); }
@@ -2219,8 +2230,11 @@
             </div>
             <div class="pv-seg" id="pvState" role="group"></div>
             <select class="pv-select" id="pvGroup"></select>
+            <select class="pv-select" id="pvRegion"></select>
+            <button type="button" class="btn btn-ghost btn-sm" id="pvCheckAll"></button>
             <div class="pv-count" id="pvCount"></div>
           </div>
+          <p class="pv-note" id="pvProbeNote"></p>
           <div class="pv-table" id="pvMount"></div>
         </div>
 
@@ -4866,7 +4880,10 @@
 
       /* ── Plus 3: провайдеры таблицей ── */
       let provChanges = {};      // { ключ: { поле: значение|null } }; null = убрать поле из init.conf
-      let pvFilter = { q: '', state: 'all', group: '' };
+      let pvFilter = { q: '', state: 'all', group: '', region: '' };
+      const pvProbe = {};        // проверка доступности из браузера: { ключ: { state, ms, host } }
+
+      const pvRegionOf = key => (modCatalog.providerRegion || {})[String(key).toLowerCase()] || '';
 
       // имя поля включения зависит от CoreInit.defaultOn: "enable" (по умолчанию) или "enabled"
       function pvEnableField() { return currentObj && currentObj.defaultOn === 'enabled' ? 'enabled' : 'enable'; }
@@ -4884,7 +4901,17 @@
             if (isPlainObject(currentObj[k])) out.push({ key: k, group: g.id, groupTitle: (g.title || g.id).replace(/^Источники\s*·\s*/, '') });
           });
         });
+        // провайдеры, которых нет в каталоге групп (новые модули), но есть в справочнике регионов
+        const have = new Set(out.map(p => p.key));
+        Object.keys(currentObj).forEach(k => {
+          if (!have.has(k) && isPlainObject(currentObj[k]) && pvRegionOf(k) && !ConfigSectionGroups_known(k))
+            out.push({ key: k, group: 'src-new', groupTitle: tr('Новые модули', 'New modules') });
+        });
         return out.sort((a, b) => a.key.toLowerCase().localeCompare(b.key.toLowerCase()));
+      }
+
+      function ConfigSectionGroups_known(k) {
+        return catalogGroupsMeta.some(g => (g.keys || []).indexOf(k) >= 0);
       }
 
       function pvValue(key, field) {
@@ -4957,6 +4984,71 @@
         return wrap;
       }
 
+      function pvProbeHost(key) { return String(pvValue(key, 'host') || '').trim(); }
+
+      function pvProbeView(key) {
+        const box = document.querySelector('.pv-probe[data-key="' + CSS.escape(key) + '"]');
+        if (!box) return;
+        const r = pvProbe[key];
+        box.innerHTML = '';
+        const host = pvProbeHost(key);
+        if (!/^https?:\/\//i.test(host)) { box.appendChild(mdEl('span', 'pv-na', '—')); return; }
+        const valid = r && r.host === host ? r : null;
+        const st = valid ? valid.state : '';
+        box.appendChild(mdEl('span', 'pv-dot ' + (st === 'ok' || st === 'fail' || st === 'timeout' || st === 'run' ? st : '')));
+        const txt = { ok: valid && valid.ms + ' ' + tr('мс', 'ms'), fail: tr('нет ответа', 'no response'), timeout: tr('таймаут', 'timeout'), run: '…',
+          mixed: tr('нельзя (http с https-панели)', 'blocked (http from https page)') }[st];
+        if (txt) box.appendChild(mdEl('span', '', txt));
+        if (st !== 'run') {
+          const b = mdEl('button', '', valid ? tr('ещё раз', 'again') : tr('Проверить', 'Check'));
+          b.type = 'button';
+          b.addEventListener('click', () => pvCheck(key));
+          box.appendChild(b);
+        }
+      }
+
+      // Проверка из браузера: no-cors-запрос показывает только факт ответа (любой статус) и время, не код ответа
+      async function pvCheck(key) {
+        const host = pvProbeHost(key);
+        if (!/^https?:\/\//i.test(host)) return;
+        if (location.protocol === 'https:' && /^http:/i.test(host)) { pvProbe[key] = { state: 'mixed', host: host }; pvProbeView(key); return; }
+        pvProbe[key] = { state: 'run', host: host };
+        pvProbeView(key);
+        const ctl = new AbortController();
+        const timer = setTimeout(() => ctl.abort(), 8000);
+        const t0 = performance.now();
+        try {
+          await fetch(host, { method: 'HEAD', mode: 'no-cors', cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer', signal: ctl.signal });
+          pvProbe[key] = { state: 'ok', ms: Math.round(performance.now() - t0), host: host };
+        } catch (e) {
+          pvProbe[key] = { state: ctl.signal.aborted ? 'timeout' : 'fail', host: host };
+        } finally { clearTimeout(timer); }
+        pvProbeView(key);
+        pvProbeSummary();
+      }
+
+      function pvProbeSummary() {
+        const vals = Object.keys(pvProbe).map(k => pvProbe[k]).filter(r => r.state === 'ok' || r.state === 'fail' || r.state === 'timeout');
+        $('#pvCheckAll').title = vals.length ? tr('Доступно ', 'Reachable ') + vals.filter(r => r.state === 'ok').length + ' / ' + vals.length : '';
+      }
+
+      async function pvCheckAll() {
+        const keys = Array.from(document.querySelectorAll('.pv-row[data-key]')).map(r => r.dataset.key)
+          .filter(k => /^https?:\/\//i.test(pvProbeHost(k)));
+        const btn = $('#pvCheckAll');
+        btn.disabled = true;
+        let i = 0, done = 0;
+        const total = keys.length;
+        const label = () => { btn.textContent = tr('Проверка… ', 'Checking… ') + done + '/' + total; };
+        label();
+        const worker = async () => { while (i < keys.length) { const k = keys[i++]; await pvCheck(k); done++; label(); } };
+        await Promise.all([worker(), worker(), worker(), worker(), worker()]);
+        btn.disabled = false;
+        btn.textContent = tr('Проверить доступность', 'Check availability');
+        const ok = keys.filter(k => pvProbe[k] && pvProbe[k].state === 'ok').length;
+        showToast(tr('Доступно ', 'Reachable ') + ok + ' / ' + total, ok === total ? 'ok' : 'warn');
+      }
+
       function renderProviders() {
         const mount = $('#pvMount');
         if (!mount) return;
@@ -4987,6 +5079,29 @@
         const seen = {};
         all.forEach(p => { if (!seen[p.group]) { seen[p.group] = 1; const o = document.createElement('option'); o.value = p.group; o.textContent = p.groupTitle; sel.appendChild(o); } });
         sel.value = f.group;
+        const rsel = $('#pvRegion');
+        rsel.innerHTML = '';
+        const r0 = document.createElement('option');
+        r0.value = '';
+        r0.textContent = tr('Все регионы', 'All regions');
+        rsel.appendChild(r0);
+        Object.keys(modCatalog.regions || {}).forEach(code => {
+          const o = document.createElement('option');
+          o.value = code;
+          o.textContent = code;
+          rsel.appendChild(o);
+        });
+        const o1 = document.createElement('option');
+        o1.value = '-';
+        o1.textContent = tr('Без региона', 'No region');
+        rsel.appendChild(o1);
+        rsel.value = f.region;
+        rsel.hidden = !modCatalog.regions;
+        const cb0 = $('#pvCheckAll');
+        if (!cb0.disabled) cb0.textContent = tr('Проверить доступность', 'Check availability');
+        $('#pvProbeNote').textContent = tr(
+          'Доступность проверяется из вашего браузера (не с сервера Lampac): показывает, отвечает ли адрес, и время ответа, но не код ответа и не работу самого источника. Результат может отличаться от того, что видит сервер (прокси, DNS, блокировки).',
+          'Availability is checked from your browser (not from the Lampac server): it shows whether the address answers and how fast, not the response code or whether the source itself works. It can differ from what the server sees (proxy, DNS, blocking).');
 
         const en = pvEnableField();
         const q = f.q.trim().toLowerCase();
@@ -4995,6 +5110,7 @@
           if (f.state === 'on' && !on) return false;
           if (f.state === 'off' && on) return false;
           if (f.group && p.group !== f.group) return false;
+          if (f.region && (f.region === '-' ? pvRegionOf(p.key) : pvRegionOf(p.key) !== f.region)) return false;
           if (q && p.key.toLowerCase().indexOf(q) < 0 && String(pvValue(p.key, 'host') || '').toLowerCase().indexOf(q) < 0) return false;
           return true;
         });
@@ -5008,7 +5124,7 @@
         }
         const head = document.createElement('div');
         head.className = 'pv-row pv-head';
-        [tr('Источник', 'Source'), tr('Вкл.', 'On'), tr('Адрес', 'Address'), tr('Токен', 'Token'), tr('Порядок', 'Order')].forEach(t => {
+        [tr('Источник', 'Source'), tr('Вкл.', 'On'), tr('Адрес', 'Address'), tr('Токен', 'Token'), tr('Порядок', 'Order'), tr('Доступ', 'Reach')].forEach(t => {
           const d = document.createElement('div');
           d.textContent = t;
           head.appendChild(d);
@@ -5034,6 +5150,12 @@
           nm.textContent = p.key;
           const sm = document.createElement('small');
           sm.textContent = p.groupTitle;
+          const rg = pvRegionOf(p.key);
+          if (rg) {
+            const tag = mdEl('span', 'pv-reg' + (rg === 'Paid' ? ' paid' : ''), rg);
+            tag.title = mdLang((modCatalog.regions || {})[rg]);
+            sm.appendChild(tag);
+          }
           nm.appendChild(sm);
           row.appendChild(nm);
 
@@ -5055,7 +5177,12 @@
           row.appendChild(pvInput(p.key, 'host', tr('Адрес', 'Address'), 'text'));
           row.appendChild(pvInput(p.key, 'token', tr('Токен', 'Token'), 'secret'));
           row.appendChild(pvInput(p.key, 'displayindex', tr('Порядок', 'Order'), 'num'));
+          const pb = mdEl('div', 'pv-probe');
+          pb.dataset.key = p.key;
+          pb.dataset.label = tr('Доступность', 'Availability');
+          row.appendChild(pb);
           mount.appendChild(row);
+          pvProbeView(p.key);
         });
       }
 
@@ -5093,6 +5220,8 @@
 
       $('#pvSearch').addEventListener('input', e => { pvFilter.q = e.target.value; renderProviders(); });
       $('#pvGroup').addEventListener('change', e => { pvFilter.group = e.target.value; renderProviders(); });
+      $('#pvRegion').addEventListener('change', e => { pvFilter.region = e.target.value; renderProviders(); });
+      $('#pvCheckAll').addEventListener('click', pvCheckAll);
 
       const OV_TILES = [
         { key: 'listen', path: 'listen.port', ru: 'Порт сервера', en: 'Server port', type: 'text' },
@@ -5132,13 +5261,9 @@
 
       function providerStats() {
         let total = 0, enabled = 0;
-        catalogGroupsMeta.filter(g => g.id.indexOf('src-') === 0).forEach(g => {
-          (g.keys || []).forEach(k => {
-            const v = currentObj[k];
-            if (!isPlainObject(v)) return;
-            total++;
-            if (v[pvEnableField()] === true) enabled++;
-          });
+        pvList().forEach(p => {
+          total++;
+          if (currentObj[p.key][pvEnableField()] === true) enabled++;
         });
         return { total: total, enabled: enabled };
       }
