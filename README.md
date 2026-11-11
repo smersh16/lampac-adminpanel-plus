@@ -63,4 +63,6 @@ Lampac умеет сам подтягивать модули из репозит
 
 `AdminPanelPlus.csproj` нужен только для проверки сборки: положите папку в `Modules/` дерева Lampac и выполните `dotnet build Modules/AdminPanelPlus/AdminPanelPlus.csproj --nologo`. На сервере модуль компилируется из исходников по списку `tree` в `manifest.json`. Файлы `index.html`, `auth.html` и `hints.json` в список не входят, они читаются из папки модуля.
 
-Лицензия: см. `LICENSE`.
+## Лицензия
+
+[GNU AGPL-3.0](LICENSE). Модуль основан на коде `Modules/AdminPanel` проекта [lampac-nextgen/lampac](https://github.com/lampac-nextgen/lampac), распространяемого под той же лицензией, поэтому производная работа тоже под AGPL-3.0. Исходный код доступен в этом репозитории.
