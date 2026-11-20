@@ -3,13 +3,16 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Shared;
 using Shared.Attributes;
+using Shared.Services;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Net;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
@@ -338,9 +341,28 @@ public class HealthCheckController : BaseController
         public string failedAt { get; set; }
         public string via { get; set; }
         public List<Step> steps { get; set; } = new();
+        public List<HostInfo> hosts { get; set; } = new();
+    }
+
+    /// <summary>Реальный хост, к которому ходил Lampac (за /proxy/ раскрывается из токена): его и нужно добавлять в маршрутизацию VPN.</summary>
+    sealed class HostInfo
+    {
+        public string host { get; set; }
+        public string role { get; set; }          // manifest | segment
+        public bool ok { get; set; }
+        public string error { get; set; }
+        public bool upstreamProxy { get; set; }   // Lampac идёт к нему через свой внешний proxy из настроек провайдера
+        public string[] ips { get; set; } = Array.Empty<string>();
     }
 
     static async Task<CheckResult> CheckAsync(string providerUrl, Sample s, CancellationToken ct)
+    {
+        var res = await CheckCoreAsync(providerUrl, s, ct).ConfigureAwait(false);
+        await ResolveHostsAsync(res.hosts, ct).ConfigureAwait(false);
+        return res;
+    }
+
+    static async Task<CheckResult> CheckCoreAsync(string providerUrl, Sample s, CancellationToken ct)
     {
         var res = new CheckResult();
 
@@ -509,6 +531,7 @@ public class HealthCheckController : BaseController
         var m = await GetAsync(reqUrl, 25, local, MaxBodyBytes, ct).ConfigureAwait(false);
         sw.Stop();
         long manifestMs = sw.ElapsedMilliseconds;
+        NoteHost(res, reqUrl, local, "manifest", m.ok, m.error);
 
         if (!m.ok)
         {
@@ -542,6 +565,7 @@ public class HealthCheckController : BaseController
                 var sw2 = Stopwatch.StartNew();
                 var v = await GetAsync(vreq, 25, vl, MaxBodyBytes, ct).ConfigureAwait(false);
                 sw2.Stop();
+                NoteHost(res, vreq, vl, "manifest", v.ok, v.error);
 
                 if (!v.ok || !(v.text ?? string.Empty).TrimStart().StartsWith("#EXTM3U", StringComparison.Ordinal))
                 {
@@ -597,6 +621,7 @@ public class HealthCheckController : BaseController
         var sw = Stopwatch.StartNew();
         var g = await GetAsync(reqUrl, 25, local, 2048, ct, range: "bytes=0-2047").ConfigureAwait(false);
         sw.Stop();
+        NoteHost(res, reqUrl, local, "segment", g.ok && g.bytes > 0, g.error ?? (g.ok ? "пустой ответ" : null));
 
         if (!g.ok || g.bytes == 0)
         {
@@ -777,6 +802,143 @@ public class HealthCheckController : BaseController
             r.error = Clip(ex.InnerException?.Message ?? ex.Message, 160);
             return r;
         }
+    }
+    #endregion
+
+    #region домены и IP для маршрутизации
+    static readonly Regex HostName = new(@"^[A-Za-z0-9]([A-Za-z0-9.\-]{0,251}[A-Za-z0-9])?$", RegexOptions.Compiled);
+
+    static string CleanHost(string h) => h?.Trim().Trim('[', ']').ToLowerInvariant();
+
+    /// <summary>Хост, на который реально уйдёт запрос: для /proxy/{токен} достаём исходный адрес из токена, для внешних ссылок берём хост ссылки.</summary>
+    static string HostOfRequest(string reqUrl, bool local, out bool upstreamProxy)
+    {
+        upstreamProxy = false;
+        try
+        {
+            if (!Uri.TryCreate(reqUrl, UriKind.Absolute, out var u))
+                return null;
+
+            if (!local)
+                return CleanHost(u.Host);
+
+            string path = Uri.UnescapeDataString(u.AbsolutePath);
+            string hash;
+            if (path.StartsWith("/proxy-dash/", StringComparison.OrdinalIgnoreCase))
+            {
+                hash = path.Substring(12);
+                if (hash.Length < 32)
+                    return null;
+                hash = hash.Substring(0, 32);
+            }
+            else if (path.StartsWith("/proxy/", StringComparison.OrdinalIgnoreCase))
+            {
+                hash = path.Substring(7);
+            }
+            else
+            {
+                return null;
+            }
+
+            var link = ProxyLink.Decrypt(hash.AsSpan(), null);
+            if (link?.uri == null || !Uri.TryCreate(link.uri, UriKind.Absolute, out var real))
+                return null;
+
+            upstreamProxy = link.proxy != null;
+            return CleanHost(real.Host);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    static void NoteHost(CheckResult res, string reqUrl, bool local, string role, bool ok, string error)
+    {
+        string host = HostOfRequest(reqUrl, local, out bool up);
+        if (string.IsNullOrEmpty(host))
+            return;
+
+        var ex = res.hosts.FirstOrDefault(h => h.host == host && h.role == role);
+        if (ex == null)
+        {
+            res.hosts.Add(new HostInfo { host = host, role = role, ok = ok, error = ok ? null : error, upstreamProxy = up });
+        }
+        else if (!ok)
+        {
+            ex.ok = false;
+            ex.error ??= error;
+        }
+    }
+
+    static async Task ResolveHostsAsync(List<HostInfo> hosts, CancellationToken ct)
+    {
+        var cache = new Dictionary<string, string[]>();
+        foreach (var h in hosts)
+        {
+            if (!cache.TryGetValue(h.host, out var ips))
+            {
+                ips = await ResolveOneAsync(h.host, ct).ConfigureAwait(false);
+                cache[h.host] = ips;
+            }
+
+            h.ips = ips;
+        }
+    }
+
+    // IP определяются DNS-резолвером сервера Lampac: резолвер роутера или VPN может отдать другие адреса
+    static async Task<string[]> ResolveOneAsync(string host, CancellationToken ct)
+    {
+        if (IPAddress.TryParse(host, out var literal))
+            return new[] { literal.ToString() };
+
+        try
+        {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(TimeSpan.FromSeconds(3));
+            var addrs = await Dns.GetHostAddressesAsync(host, cts.Token).ConfigureAwait(false);
+            return addrs.Select(a => a.ToString()).Distinct().Take(8).ToArray();
+        }
+        catch
+        {
+            return Array.Empty<string>();
+        }
+    }
+
+    public sealed class ResolveRequest
+    {
+        public List<string> hosts { get; set; }
+    }
+
+    /// <summary>Только DNS-запрос для списка доменов (например, адресов провайдеров из init.conf); соединений с ними не открывается.</summary>
+    [HttpPost]
+    [Route("/adminpanel/api/healthcheck/resolve")]
+    public async Task<ActionResult> Resolve()
+    {
+        string body = await ReadBodyAsync().ConfigureAwait(false);
+        ResolveRequest req;
+        try
+        {
+            req = JsonConvert.DeserializeObject<ResolveRequest>(body ?? string.Empty);
+        }
+        catch (JsonException ex)
+        {
+            return Err(400, "invalid json", ex.Message);
+        }
+
+        var list = (req?.hosts ?? new List<string>())
+            .Select(CleanHost)
+            .Where(h => !string.IsNullOrEmpty(h) && (IPAddress.TryParse(h, out _) || HostName.IsMatch(h)))
+            .Distinct()
+            .Take(60)
+            .ToList();
+
+        var map = new Dictionary<string, string[]>();
+        var tasks = list.Select(async h => (h, ips: await ResolveOneAsync(h, HttpContext.RequestAborted).ConfigureAwait(false))).ToList();
+        foreach (var (h, ips) in await Task.WhenAll(tasks).ConfigureAwait(false))
+            map[h] = ips;
+
+        return Json(new { ips = map });
     }
     #endregion
 

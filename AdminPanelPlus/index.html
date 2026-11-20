@@ -2007,6 +2007,17 @@
     .hc-dot.run { background: var(--accent); animation: pvpulse 1s infinite; }
     .hc-det { font-size: var(--text-xs); color: var(--text-muted); line-height: 1.5; min-width: 0; overflow-wrap: anywhere; }
     .hc-det div + div { margin-top: 2px; }
+    .hc-hosts { margin-top: var(--sp-5, 24px); }
+    .hc-hosts h3 { font-size: var(--text-base, 15px); margin: 0 0 var(--sp-2); }
+    .hc-hrow { display: grid; grid-template-columns: minmax(160px, 2fr) 120px minmax(120px, 1.4fr) 110px minmax(140px, 2fr); gap: var(--sp-3); align-items: center; padding: 8px var(--sp-4); border-top: 1px solid var(--border-subtle); font-size: var(--text-sm); }
+    .hc-hrow.hc-head { border-top: 0; font-size: var(--text-xs); font-weight: 700; color: var(--text-muted); background: var(--surface-2); padding-top: 10px; padding-bottom: 10px; }
+    .hc-hrow .mono { font-family: var(--font-mono); font-size: var(--text-xs); overflow-wrap: anywhere; }
+    .hc-hrow.bad .mono:first-child { color: var(--err); }
+    .hc-rep { width: 100%; box-sizing: border-box; min-height: 220px; font-family: var(--font-mono); font-size: var(--text-xs); background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: var(--r-md); padding: 8px; resize: vertical; }
+    @media (max-width: 900px) {
+      .hc-hrow.hc-head { display: none; }
+      .hc-hrow { grid-template-columns: 1fr; gap: 2px; }
+    }
     .hc-step { display: inline-block; padding: 0 6px; margin-right: 4px; border-radius: 999px; font-size: var(--text-xs); background: var(--surface-2); }
     .hc-step.ok { background: var(--ok-dim, var(--accent-dim)); color: var(--ok); }
     .hc-step.fail { background: var(--err-dim, var(--surface-2)); color: var(--err); }
@@ -2314,6 +2325,21 @@
           </div>
           <p class="pv-note" id="hcNote"></p>
           <div class="pv-table" id="hcMount"></div>
+          <div class="hc-hosts" id="hcHosts" hidden>
+            <h3 id="hcHostsTitle"></h3>
+            <p class="pv-note" id="hcHostsNote"></p>
+            <div class="hc-bar">
+              <div class="pv-seg" id="hcHostFilter" role="group"></div>
+              <button type="button" class="btn btn-ghost btn-sm" id="hcCopyDomains"></button>
+              <button type="button" class="btn btn-ghost btn-sm" id="hcCopyReport"></button>
+              <button type="button" class="btn btn-ghost btn-sm" id="hcDownload"></button>
+            </div>
+            <div class="pv-table" id="hcHostsMount"></div>
+            <details class="hc-set" style="margin-top:var(--sp-3)" id="hcRepBox">
+              <summary id="hcRepSum"></summary>
+              <div class="hc-set-body"><textarea class="hc-rep" id="hcRep" readonly spellcheck="false"></textarea></div>
+            </details>
+          </div>
         </div>
 
         <!-- PANEL: Modules -->
@@ -5977,6 +6003,8 @@
           ? tr('Работают: ', 'Working: ') + n.ok + ' · ' + tr('сбои: ', 'failed: ') + n.fail + ' · ' + tr('нет данных: ', 'no data: ') + n.nodata
           : '';
 
+        hcRenderHosts();
+
         if (!keys.length) {
           mount.appendChild(hcEl('div', 'pv-empty', hc.order.length ? tr('Нет провайдеров с таким состоянием.', 'No providers in this state.') : tr('Нажмите «Проверить все»: список провайдеров берётся у сервера для каждого тестового тайтла.', 'Press “Check all”: the provider list is taken from the server for each test title.')));
           return;
@@ -6084,6 +6112,7 @@
           await Promise.all([worker(), worker(), worker()]);
         } finally {
           keys.forEach(k => { if (hc.rows[k]) hc.rows[k].running = false; });
+          await hcResolveProviderHosts();
           hc.running = false;
           renderHealth();
         }
@@ -6097,6 +6126,191 @@
         await hcRun(hc.order.slice());
       });
       $('#hcStop').addEventListener('click', () => { hc.stop = true; });
+
+      /* ── Домены и IP для маршрутизации (VPN) и общий отчёт ── */
+      hc.hostFilter = 'bad';
+      hc.dns = {};
+
+      const HC_CFG_SKIP = /^(overridehost|overridehosts|webcorshost|apn|cub|proxy|proxies)$/i;
+
+      function hcProviderHosts(balanser) {
+        // адреса, заданные у провайдера в настройках (host и т.п.); это API/сайт самого источника, не CDN потоков
+        const out = new Set();
+        const cfgKey = Object.keys(currentObj || {}).find(x => x.toLowerCase() === String(balanser).toLowerCase());
+        const obj = cfgKey && isPlainObject(currentObj[cfgKey]) ? currentObj[cfgKey] : null;
+        if (!obj) return [];
+        Object.keys(obj).forEach(f => {
+          const v = obj[f];
+          if (HC_CFG_SKIP.test(f) || typeof v !== 'string' || !/^https?:\/\//i.test(v)) return;
+          try { out.add(new URL(v).hostname.toLowerCase()); } catch (e) { }
+        });
+        return Array.from(out);
+      }
+
+      function hcAggregateHosts() {
+        const map = new Map();
+        const get = h => { if (!map.has(h)) map.set(h, { host: h, roles: new Set(), ips: new Set(), providers: new Set(), failedProviders: new Set(), errors: new Set(), upstream: false, tested: false }); return map.get(h); };
+        hc.order.forEach(k => {
+          const row = hc.rows[k];
+          const pname = row.name || k;
+          const st = hcStatusOf(row);
+          // домен самого провайдера виним только при сбое до получения ссылки; сбой манифеста/сегмента относится к CDN
+          const apiFail = Object.values(row.results || {}).some(r => r.error || (r.status === 'fail' && ['search', 'browse', 'link'].indexOf(r.failedAt) >= 0));
+          hcProviderHosts(k).forEach(h => {
+            const e = get(h);
+            e.roles.add('provider'); e.providers.add(pname);
+            (hc.dns[h] || []).forEach(ip => e.ips.add(ip));
+            if (apiFail) e.failedProviders.add(pname);
+            if (st === 'ok') e.tested = true;
+          });
+          Object.values(row.results || {}).forEach(res => {
+            (res.hosts || []).forEach(x => {
+              const e = get(x.host);
+              e.tested = true;
+              e.roles.add(x.role); e.providers.add(pname);
+              (x.ips || []).forEach(ip => e.ips.add(ip));
+              if (x.upstreamProxy) e.upstream = true;
+              if (!x.ok) { e.failedProviders.add(pname); if (x.error) e.errors.add(x.error); }
+            });
+          });
+        });
+        return Array.from(map.values()).sort((a, b) => (b.failedProviders.size > 0) - (a.failedProviders.size > 0) || a.host.localeCompare(b.host));
+      }
+
+      function hcRoleName(r) { return { provider: tr('сайт/API провайдера', 'provider site/API'), manifest: tr('манифест потока', 'stream manifest'), segment: tr('сегменты видео', 'video segments') }[r] || r; }
+
+      function hcRenderHosts() {
+        const box = $('#hcHosts');
+        if (!box) return;
+        const all = hcAggregateHosts();
+        box.hidden = !hc.order.length;
+        if (!hc.order.length) return;
+
+        $('#hcHostsTitle').textContent = tr('Домены и IP для маршрутизации через VPN', 'Domains and IPs for VPN routing');
+        $('#hcHostsNote').textContent = tr(
+          'Домены потоков (манифест, сегменты) взяты из ссылок за /proxy/ Lampac, то есть это реальные узлы CDN, к которым ходит сервер. «Проблемные» — домены, на которых были сбои в проверке. IP определены DNS сервера Lampac: резолвер роутера или VPN может отдать другие адреса, поэтому в списки лучше добавлять домены. У доменов провайдеров IP нет без проверки: они берутся из настроек, а не из запросов.',
+          'Stream domains (manifest, segments) are taken from Lampac /proxy/ links, i.e. the real CDN nodes the server talks to. “Problem” means domains that had failures in the check. IPs come from the Lampac server DNS: a router or VPN resolver may return other addresses, so prefer adding domains to lists. Provider domains come from settings, not from requests.');
+        $('#hcCopyDomains').textContent = tr('Копировать домены', 'Copy domains');
+        $('#hcCopyReport').textContent = tr('Копировать отчёт', 'Copy report');
+        $('#hcDownload').textContent = tr('Скачать JSON', 'Download JSON');
+        $('#hcRepSum').textContent = tr('Отчёт для анализа (текст)', 'Report for analysis (text)');
+
+        const seg = $('#hcHostFilter');
+        seg.innerHTML = '';
+        [['bad', tr('Проблемные', 'Problem')], ['all', tr('Все', 'All')]].forEach(([id, t]) => {
+          const b = hcEl('button', null, t);
+          b.type = 'button';
+          b.classList.toggle('active', hc.hostFilter === id);
+          b.addEventListener('click', () => { hc.hostFilter = id; hcRenderHosts(); });
+          seg.appendChild(b);
+        });
+
+        const list = hc.hostFilter === 'bad' ? all.filter(e => e.failedProviders.size > 0) : all;
+        const mount = $('#hcHostsMount');
+        mount.innerHTML = '';
+        const head = hcEl('div', 'hc-hrow hc-head');
+        [tr('Домен', 'Domain'), tr('Роль', 'Role'), tr('Провайдеры', 'Providers'), tr('Состояние', 'Status'), 'IP'].forEach(t => head.appendChild(hcEl('div', null, t)));
+        mount.appendChild(head);
+        if (!list.length) {
+          mount.appendChild(hcEl('div', 'pv-empty', hc.hostFilter === 'bad' ? tr('Проблемных доменов нет.', 'No problem domains.') : tr('Нет данных.', 'No data.')));
+        }
+        list.forEach(e => {
+          const bad = e.failedProviders.size > 0;
+          const r = hcEl('div', 'hc-hrow' + (bad ? ' bad' : ''));
+          r.appendChild(hcEl('div', 'mono', e.host));
+          r.appendChild(hcEl('div', 'hc-det', Array.from(e.roles).map(hcRoleName).join(', ') + (e.upstream ? ' · ' + tr('через proxy провайдера', 'via provider proxy') : '')));
+          r.appendChild(hcEl('div', 'hc-det', Array.from(e.providers).join(', ')));
+          r.appendChild(hcEl('div', 'hc-det', bad ? tr('сбой', 'failed') + (e.errors.size ? ': ' + Array.from(e.errors).slice(0, 2).join('; ') : '') : (e.tested ? tr('отвечает', 'responds') : tr('не проверялся', 'not tested'))));
+          r.appendChild(hcEl('div', 'mono', Array.from(e.ips).join(', ') || '—'));
+          mount.appendChild(r);
+        });
+
+        $('#hcRep').value = hcReportText(all);
+      }
+
+      function hcDomainsText() {
+        const all = hcAggregateHosts();
+        const list = hc.hostFilter === 'bad' ? all.filter(e => e.failedProviders.size > 0) : all;
+        return list.map(e => e.host).join('\n');
+      }
+
+      function hcReportText(all) {
+        const lines = [];
+        const n = { ok: 0, fail: 0, nodata: 0, idle: 0 };
+        hc.order.forEach(k => { n[hcStatusOf(hc.rows[k])]++; });
+        lines.push('Lampac provider check: ' + new Date().toLocaleString());
+        lines.push('Titles: ' + hc.samples.map(x => x.kind + ':' + x.title + (x.year ? ' (' + x.year + ')' : '')).join('; '));
+        lines.push('Summary: working ' + n.ok + ', failed ' + n.fail + ', no data ' + n.nodata + ', total ' + hc.order.length);
+        lines.push('');
+        lines.push('== Providers ==');
+        hc.order.forEach(k => {
+          const row = hc.rows[k];
+          const st = hcStatusOf(row);
+          lines.push((row.name || k) + ' [' + k + ']: ' + st.toUpperCase());
+          Object.keys(row.targets).forEach(sid => {
+            const smp = hc.samples.find(x => x.id === sid);
+            const res = row.results[sid];
+            const label = '  - ' + (smp ? smp.kind + ' ' + smp.title : sid) + ': ';
+            if (!res) { lines.push(label + 'not run'); return; }
+            if (res.status === 'nodata') { lines.push(label + 'no data (not in provider catalog)'); return; }
+            if (res.error) { lines.push(label + 'error: ' + res.error); return; }
+            const steps = (res.steps || []).map(sp => sp.name + (sp.ok ? ' ok' : ' FAIL') + (sp.ms ? ' ' + sp.ms + 'ms' : '') + (!sp.ok && sp.detail ? ' (' + sp.detail + ')' : '')).join(' > ');
+            lines.push(label + res.status + (res.via ? ' via ' + res.via : '') + ' | ' + steps);
+            (res.hosts || []).forEach(x => lines.push('      host ' + x.host + ' [' + x.role + '] ' + (x.ok ? 'ok' : 'FAIL' + (x.error ? ' ' + x.error : '')) + (x.ips && x.ips.length ? ' ips=' + x.ips.join(',') : '') + (x.upstreamProxy ? ' (provider proxy)' : '')));
+          });
+        });
+        lines.push('');
+        lines.push('== Domains (problem first) ==');
+        all.forEach(e => {
+          lines.push(e.host + ' | ' + Array.from(e.roles).join(',') + ' | providers: ' + Array.from(e.providers).join(',') + ' | ' + (e.failedProviders.size ? 'FAIL: ' + Array.from(e.failedProviders).join(',') + (e.errors.size ? ' (' + Array.from(e.errors).join('; ') + ')' : '') : (e.tested ? 'ok' : 'not tested')) + ' | ips: ' + (Array.from(e.ips).join(',') || '-'));
+        });
+        return lines.join('\n');
+      }
+
+      async function hcCopy(text, okMsg) {
+        let done = false;
+        try {
+          if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); done = true; }
+        } catch (e) { }
+        if (!done) {
+          // страница по http в локальной сети: Clipboard API недоступен, копируем через временное поле
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.position = 'fixed'; ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          try { done = document.execCommand('copy'); } catch (e) { }
+          ta.remove();
+        }
+        if (done) showToast(okMsg, 'ok');
+        else { $('#hcRepBox').open = true; $('#hcRep').focus(); $('#hcRep').select(); showToast(tr('Не удалось скопировать автоматически: текст выделен ниже, нажмите Ctrl+C', 'Auto copy failed: the text below is selected, press Ctrl+C'), 'err'); }
+      }
+
+      $('#hcCopyDomains').addEventListener('click', () => {
+        const t = hcDomainsText();
+        if (!t) { showToast(tr('Список доменов пуст', 'Domain list is empty'), 'err'); return; }
+        hcCopy(t, tr('Домены скопированы', 'Domains copied'));
+      });
+      $('#hcCopyReport').addEventListener('click', () => hcCopy($('#hcRep').value, tr('Отчёт скопирован', 'Report copied')));
+      $('#hcDownload').addEventListener('click', () => {
+        const data = { time: new Date().toISOString(), samples: hc.samples, providers: hc.order.map(k => ({ key: k, name: hc.rows[k].name, status: hcStatusOf(hc.rows[k]), configured_hosts: hcProviderHosts(k), results: hc.rows[k].results })), domains: hcAggregateHosts().map(e => ({ host: e.host, roles: Array.from(e.roles), providers: Array.from(e.providers), failed_providers: Array.from(e.failedProviders), errors: Array.from(e.errors), ips: Array.from(e.ips) })) };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'lampac-healthcheck-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.json';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      });
+
+      async function hcResolveProviderHosts() {
+        const need = [];
+        hc.order.forEach(k => hcProviderHosts(k).forEach(h => { if (!(h in hc.dns) && need.indexOf(h) < 0) need.push(h); }));
+        if (!need.length) return;
+        try {
+          const j = await hcJson('/adminpanel/api/healthcheck/resolve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hosts: need }) });
+          need.forEach(h => { hc.dns[h] = (j.ips && j.ips[h]) || []; });
+        } catch (e) { need.forEach(h => { hc.dns[h] = []; }); }
+      }
 
       async function hcOpen() {
         try {
