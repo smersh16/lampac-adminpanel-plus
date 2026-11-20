@@ -393,6 +393,8 @@ public class HealthCheckController : BaseController
             if (!r.ok)
             {
                 string why503 = r.error == "HTTP 503" && depth == 0 ? "HTTP 503: провайдер не дал результата (тайтла нет в каталоге или его сайт не ответил)" : r.error;
+                if (!string.IsNullOrEmpty(r.body))
+                    why503 += "; ответ провайдера: " + r.body;
                 res.steps.Add(new Step { name = stepName, ok = false, ms = sw.ElapsedMilliseconds, detail = why503 });
                 return fail(stepName);
             }
@@ -478,7 +480,7 @@ public class HealthCheckController : BaseController
             sw.Stop();
 
             string resolved = null;
-            string why = r.error;
+            string why = string.IsNullOrEmpty(r.body) ? r.error : r.error + "; ответ провайдера: " + r.body;
             if (r.ok)
             {
                 try
@@ -799,6 +801,7 @@ public class HealthCheckController : BaseController
     {
         public bool ok;
         public string error;
+        public string body;
         public string text;
         public int bytes;
         public string contentType;
@@ -840,6 +843,33 @@ public class HealthCheckController : BaseController
             if (code < 200 || code >= 300)
             {
                 r.error = "HTTP " + code;
+
+                if (withPasswd)
+                {
+                    // OnError() кладёт причину в тело ответа: показываем её, а не только код
+                    try
+                    {
+                        await using var es = await resp.Content.ReadAsStreamAsync(cts.Token).ConfigureAwait(false);
+                        var eb = new byte[600];
+                        int en = 0;
+                        while (en < eb.Length)
+                        {
+                            int n = await es.ReadAsync(eb.AsMemory(en, eb.Length - en), cts.Token).ConfigureAwait(false);
+                            if (n <= 0)
+                                break;
+                            en += n;
+                        }
+
+                        string t = System.Text.RegularExpressions.Regex.Replace(Encoding.UTF8.GetString(eb, 0, en), "<[^>]*>", " ");
+                        t = System.Text.RegularExpressions.Regex.Replace(t, "\\s+", " ").Trim();
+                        if (t.Length > 0)
+                            r.body = Clip(t, 200);
+                    }
+                    catch
+                    {
+                    }
+                }
+
                 return r;
             }
 
