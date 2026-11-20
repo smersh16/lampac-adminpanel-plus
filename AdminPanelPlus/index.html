@@ -5042,7 +5042,7 @@
       }
 
       function ConfigSectionGroups_known(k) {
-        return catalogGroupsMeta.some(g => (g.keys || []).indexOf(k) >= 0);
+        return catalogGroupsMeta.some(g => g.id !== 'other' && (g.keys || []).indexOf(k) >= 0); // группа «Прочее» собирает не найденные в каталоге ключи: они не «известны»
       }
 
       function pvValue(key, field) {

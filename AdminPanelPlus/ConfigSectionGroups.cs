@@ -42,7 +42,7 @@ public static class ConfigSectionGroups
             new[] { "Catalog", "DLNA", "JacRed", "Sync", "TimeCode", "TorrServer", "Tracks", "transcoding", "TmdbProxy", "CubProxy", "WebLog" }),
 
         new("src-anime", "Источники · аниме", "Онлайн-балансеры аниме и смежные (в т.ч. Kodik).",
-            new[] { "AniLiberty", "AniLibria", "Animebesst", "AnimeGo", "AnimeLib", "AnimeON", "Animevost", "AniMedia", "Dreamerscast", "Kodik", "Mikai", "MoonAnime" }),
+            new[] { "AiLiberty", "AniDub", "AniLiberty", "AniLibria", "Animebesst", "AnimeGo", "AnimeLib", "AnimeON", "Animevost", "AniMedia", "Dreamerscast", "Kodik", "Mikai", "MoonAnime" }),
         new("src-embed", "Источники · встраиваемые плееры", "Embed и агрегаторы сторонних плееров.",
             new[] { "Autoembed", "Hydraflix", "MovPI", "Playembed", "Rgshows", "Smashystream", "Twoembed", "VidLink", "Videasy", "Vidsrc" }),
         new("src-vod", "Источники · VOD и CDN", "Кино, сериалы, региональные и CDN-провайдеры.",
@@ -50,7 +50,8 @@ public static class ConfigSectionGroups
             {
                 "Aladin", "Alloha", "Ashdi", "AsiaGe", "BamBoo", "CDNvideohub", "Collaps", "Eneyida", "FanCDN", "Filmix", "FilmixPartner", "FilmixTV", "FlixCDN",
                 "Geosaitebi", "GetsTV", "HDVB", "HdvbUA", "IptvOnline", "iRemux", "Kinobase", "Kinoflix", "Kinogo", "Kinotochka", "Kinoukr", "KinoPub",
-                "LeProduction", "Mirage", "Rezka", "RezkaPrem", "RutubeMovie", "Tortuga", "UaKino", "VideoDB", "Videoseed", "VeoVeo", "Vibix", "VkMovie", "VoKino"
+                "LeProduction", "Mirage", "Rezka", "RezkaPrem", "RutubeMovie", "Tortuga", "UaKino", "VideoDB", "Videoseed", "VeoVeo", "Vibix", "VkMovie", "VoKino",
+                "Gencit", "Kinoteatrkg", "LordFilm", "Phantom", "PizdatoeHD", "Redheadsound", "RuDub", "SakhTV", "Spectre", "UAFilm", "Zetflix", "ZetflixDB"
             }),
         new("src-adult", "Источники · 18+", "SISI / взрослые сайты.",
             new[]
