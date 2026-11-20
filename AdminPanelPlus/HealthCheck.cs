@@ -1,0 +1,816 @@
+using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using Shared;
+using Shared.Attributes;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Web;
+
+namespace AdminPanelPlus;
+
+/// <summary>
+/// Проверка провайдеров с сервера Lampac: поиск -> ссылка -> манифест -> первый сегмент.
+/// Запросы идут на localhost самого Lampac с заголовком lcrqpasswd (как у других модулей),
+/// поэтому accsdb и group_hide не мешают, а провайдеры вызываются тем же кодом, что и у плеера.
+/// </summary>
+[Authorization(redirectUri: "/adminpanel/auth")]
+public class HealthCheckController : BaseController
+{
+    const string SamplesFile = "database/adminpanel/healthcheck.json";
+    const int MaxSamples = 30;
+    const int MaxWalkDepth = 5;
+    const int MaxBodyBytes = 262144;
+
+    static readonly string[] Kinds = { "movie", "serial", "anime" };
+    static readonly SemaphoreSlim Gate = new(4, 4);
+    static readonly SemaphoreSlim FileLock = new(1, 1);
+
+    static readonly HttpClient Client = new(new SocketsHttpHandler
+    {
+        AllowAutoRedirect = true,
+        MaxAutomaticRedirections = 5,
+        AutomaticDecompression = System.Net.DecompressionMethods.All,
+        ConnectTimeout = TimeSpan.FromSeconds(10)
+    })
+    {
+        Timeout = Timeout.InfiniteTimeSpan
+    };
+
+    #region модель тестового тайтла
+    sealed class Sample
+    {
+        public string id { get; set; }
+        public string kind { get; set; } = "movie";
+        public string title { get; set; }
+        public string original_title { get; set; }
+        public int year { get; set; }
+        public long tmdb_id { get; set; }
+        public string imdb_id { get; set; }
+        public long kinopoisk_id { get; set; }
+        public string original_language { get; set; }
+    }
+
+    // TMDB/IMDb/КиноПоиск id заданы в настройках по умолчанию; если провайдер ищет только по названию, используются title/year.
+    static List<Sample> DefaultSamples() => new()
+    {
+        new Sample { id = "movie-1", kind = "movie", title = "Интерстеллар", original_title = "Interstellar", year = 2014, tmdb_id = 157336, imdb_id = "tt0816692", kinopoisk_id = 258687, original_language = "en" },
+        new Sample { id = "serial-1", kind = "serial", title = "Во все тяжкие", original_title = "Breaking Bad", year = 2008, tmdb_id = 1396, imdb_id = "tt0903747", kinopoisk_id = 404900, original_language = "en" },
+        new Sample { id = "anime-1", kind = "anime", title = "Атака титанов", original_title = "Shingeki no Kyojin", year = 2013, tmdb_id = 1429, imdb_id = "tt2560140", kinopoisk_id = 749374, original_language = "ja" }
+    };
+
+    static string Query(Sample s, bool forProvider)
+    {
+        var sb = new StringBuilder();
+
+        void add(string k, object v)
+        {
+            if (v == null)
+                return;
+            string str = Convert.ToString(v, System.Globalization.CultureInfo.InvariantCulture);
+            if (string.IsNullOrEmpty(str) || str == "0")
+                return;
+            if (sb.Length > 0)
+                sb.Append('&');
+            sb.Append(k).Append('=').Append(HttpUtility.UrlEncode(str));
+        }
+
+        if (s.tmdb_id > 0)
+        {
+            add("id", s.tmdb_id);
+            add("tmdb_id", s.tmdb_id);
+            add("source", "tmdb");
+        }
+
+        add("imdb_id", s.imdb_id);
+        add("kinopoisk_id", s.kinopoisk_id);
+        add("title", s.title);
+        add("original_title", s.original_title);
+        add("original_language", s.original_language);
+        add("year", s.year);
+
+        if (sb.Length > 0)
+            sb.Append('&');
+        sb.Append("serial=").Append(s.kind == "serial" ? "1" : "0");
+
+        if (s.kind == "anime")
+            sb.Append("&anime=1");
+
+        if (forProvider)
+            sb.Append("&rjson=true");
+        else if (s.tmdb_id > 0 && string.IsNullOrEmpty(s.imdb_id))
+            sb.Append("&external_ids=true");
+
+        return sb.ToString();
+    }
+    #endregion
+
+    #region API: тестовые тайтлы
+    [HttpGet]
+    [Route("/adminpanel/api/healthcheck/samples")]
+    public async Task<ActionResult> GetSamples()
+    {
+        var (list, custom) = await LoadSamplesAsync().ConfigureAwait(false);
+        return Json(new { custom, samples = list });
+    }
+
+    [HttpPost]
+    [Route("/adminpanel/api/healthcheck/samples")]
+    public async Task<ActionResult> SaveSamples()
+    {
+        string body = await ReadBodyAsync().ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(body))
+            return Err(400, "empty body");
+
+        List<Sample> input;
+        try
+        {
+            var root = JToken.Parse(body);
+            var arr = root is JObject o ? o["samples"] as JArray : root as JArray;
+            if (arr == null)
+                return Err(400, "samples must be an array");
+            input = arr.ToObject<List<Sample>>();
+        }
+        catch (JsonException ex)
+        {
+            return Err(400, "invalid json", ex.Message);
+        }
+
+        // пустой список = сброс к настройкам по умолчанию
+        if (input == null || input.Count == 0)
+        {
+            await FileLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                if (System.IO.File.Exists(SamplesFile))
+                    System.IO.File.Delete(SamplesFile);
+            }
+            finally
+            {
+                FileLock.Release();
+            }
+
+            return Json(new { ok = true, custom = false, samples = DefaultSamples() });
+        }
+
+        if (input.Count > MaxSamples)
+            return Err(400, "too many samples", $"max {MaxSamples}");
+
+        var clean = new List<Sample>();
+        int n = 0;
+        foreach (var s in input)
+        {
+            if (s == null || string.IsNullOrWhiteSpace(s.title))
+                return Err(400, "title is required");
+
+            n++;
+            s.kind = Kinds.Contains(s.kind) ? s.kind : "movie";
+            s.id = string.IsNullOrWhiteSpace(s.id) ? $"{s.kind}-custom-{n}" : Clip(s.id, 40);
+            s.title = Clip(s.title.Trim(), 200);
+            s.original_title = Clip(s.original_title?.Trim(), 200);
+            s.imdb_id = Clip(s.imdb_id?.Trim(), 20);
+            s.original_language = Clip(s.original_language?.Trim(), 10);
+            if (s.year < 0 || s.year > 2100) s.year = 0;
+            if (s.tmdb_id < 0) s.tmdb_id = 0;
+            if (s.kinopoisk_id < 0) s.kinopoisk_id = 0;
+            clean.Add(s);
+        }
+
+        if (clean.Select(s => s.id).Distinct().Count() != clean.Count)
+            return Err(400, "sample ids must be unique");
+
+        await FileLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            string dir = Path.GetDirectoryName(SamplesFile);
+            if (!string.IsNullOrEmpty(dir))
+                Directory.CreateDirectory(dir);
+
+            string tmp = SamplesFile + ".tmp";
+            System.IO.File.WriteAllText(tmp, JsonConvert.SerializeObject(clean, Formatting.Indented), new UTF8Encoding(false));
+            System.IO.File.Move(tmp, SamplesFile, true);
+        }
+        catch (IOException ex)
+        {
+            return Err(500, "failed to write samples", ex.Message);
+        }
+        finally
+        {
+            FileLock.Release();
+        }
+
+        return Json(new { ok = true, custom = true, samples = clean });
+    }
+
+    static async Task<(List<Sample> list, bool custom)> LoadSamplesAsync()
+    {
+        await FileLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            if (System.IO.File.Exists(SamplesFile))
+            {
+                var list = JsonConvert.DeserializeObject<List<Sample>>(System.IO.File.ReadAllText(SamplesFile, Encoding.UTF8));
+                if (list != null && list.Count > 0)
+                    return (list, true);
+            }
+        }
+        catch (Exception)
+        {
+            // повреждённый файл: работаем с настройками по умолчанию, файл не трогаем
+        }
+        finally
+        {
+            FileLock.Release();
+        }
+
+        return (DefaultSamples(), false);
+    }
+    #endregion
+
+    #region API: список провайдеров под тайтл и запуск проверки
+    /// <summary>Какие включённые провайдеры Lampac предлагает для этого тайтла (lite/events). Адреса берутся у сервера, не угадываются по имени секции.</summary>
+    [HttpGet]
+    [Route("/adminpanel/api/healthcheck/providers")]
+    public async Task<ActionResult> Providers(string sample)
+    {
+        var s = await FindSampleAsync(sample).ConfigureAwait(false);
+        if (s == null)
+            return Err(404, "sample not found");
+
+        var r = await GetAsync(LocalBase() + "/lite/events?" + Query(s, false), 30, true, MaxBodyBytes * 4).ConfigureAwait(false);
+        if (!r.ok)
+            return Err(502, "lite/events failed", r.error);
+
+        JToken parsed;
+        try
+        {
+            parsed = JToken.Parse(r.text);
+        }
+        catch (JsonException)
+        {
+            return Err(502, "lite/events returned not json", Clip(r.text, 200));
+        }
+
+        if (parsed is JObject accs && accs.Value<bool?>("accsdb") == true)
+            return Err(502, "lite/events denied by accsdb");
+
+        var list = new List<object>();
+        if (parsed is JArray arr)
+        {
+            foreach (var it in arr.OfType<JObject>())
+            {
+                string url = it.Value<string>("url");
+                if (string.IsNullOrEmpty(url))
+                    continue;
+                list.Add(new { name = it.Value<string>("name"), balanser = it.Value<string>("balanser"), url });
+            }
+        }
+
+        return Json(new { sample = s.id, providers = list });
+    }
+
+    public sealed class RunRequest
+    {
+        public string sample { get; set; }
+        public string url { get; set; }
+    }
+
+    /// <summary>Одна проверка: один провайдер на одном тайтле. Клиент вызывает её по очереди, поэтому прогресс виден сразу.</summary>
+    [HttpPost]
+    [Route("/adminpanel/api/healthcheck/run")]
+    public async Task<ActionResult> Run()
+    {
+        string body = await ReadBodyAsync().ConfigureAwait(false);
+        RunRequest req;
+        try
+        {
+            req = JsonConvert.DeserializeObject<RunRequest>(body ?? string.Empty);
+        }
+        catch (JsonException ex)
+        {
+            return Err(400, "invalid json", ex.Message);
+        }
+
+        if (req == null || string.IsNullOrWhiteSpace(req.url) || string.IsNullOrWhiteSpace(req.sample))
+            return Err(400, "sample and url are required");
+
+        var s = await FindSampleAsync(req.sample).ConfigureAwait(false);
+        if (s == null)
+            return Err(404, "sample not found");
+
+        // проверяем только адреса самого Lampac: иначе эндпоинт стал бы открытым прокси для запросов с паролем
+        if (!TryLocalizeLite(req.url, out string providerUrl))
+            return Err(400, "url must point to this Lampac (/lite/...)");
+
+        await Gate.WaitAsync(HttpContext.RequestAborted).ConfigureAwait(false);
+        try
+        {
+            var result = await CheckAsync(providerUrl, s, HttpContext.RequestAborted).ConfigureAwait(false);
+            return Content(JsonConvert.SerializeObject(result), "application/json; charset=utf-8");
+        }
+        finally
+        {
+            Gate.Release();
+        }
+    }
+    #endregion
+
+    #region цепочка проверки
+    sealed class Step
+    {
+        public string name { get; set; }
+        public bool ok { get; set; }
+        public long ms { get; set; }
+        public string detail { get; set; }
+    }
+
+    sealed class CheckResult
+    {
+        // ok - прошло всё; nodata - у провайдера нет такого тайтла (не поломка); fail - сбой на шаге failedAt
+        public string status { get; set; }
+        public string failedAt { get; set; }
+        public string via { get; set; }
+        public List<Step> steps { get; set; } = new();
+    }
+
+    static async Task<CheckResult> CheckAsync(string providerUrl, Sample s, CancellationToken ct)
+    {
+        var res = new CheckResult();
+
+        CheckResult fail(string at)
+        {
+            res.status = "fail";
+            res.failedAt = at;
+            return res;
+        }
+
+        string sep = providerUrl.Contains('?') ? "&" : "?";
+        string url = providerUrl + sep + Query(s, true);
+
+        #region 1. поиск, затем спуск по первому элементу до ссылки на видео
+        string mediaUrl = null;
+        string callUrl = null;
+
+        for (int depth = 0; depth <= MaxWalkDepth; depth++)
+        {
+            string stepName = depth == 0 ? "search" : "browse";
+            var sw = Stopwatch.StartNew();
+            var r = await GetAsync(url, 40, true, MaxBodyBytes * 4, ct).ConfigureAwait(false);
+            sw.Stop();
+
+            if (!r.ok)
+            {
+                res.steps.Add(new Step { name = stepName, ok = false, ms = sw.ElapsedMilliseconds, detail = r.error });
+                return fail(stepName);
+            }
+
+            JToken doc;
+            try
+            {
+                doc = JToken.Parse(r.text);
+            }
+            catch (JsonException)
+            {
+                res.steps.Add(new Step { name = stepName, ok = false, ms = sw.ElapsedMilliseconds, detail = "ответ не JSON: " + Clip(r.text, 120) });
+                return fail(stepName);
+            }
+
+            if (doc is JObject o && o.Value<bool?>("accsdb") == true)
+            {
+                res.steps.Add(new Step { name = stepName, ok = false, ms = sw.ElapsedMilliseconds, detail = "отказ accsdb" });
+                return fail(stepName);
+            }
+
+            var pick = ((doc as JObject)?["data"] as JArray)?.OfType<JObject>().FirstOrDefault(i => !string.IsNullOrEmpty(i.Value<string>("url")));
+            if (pick == null)
+            {
+                string msg = (doc as JObject)?.Value<string>("msg") ?? (doc as JObject)?.Value<string>("error");
+                res.steps.Add(new Step { name = stepName, ok = true, ms = sw.ElapsedMilliseconds, detail = msg ?? "пустой ответ" });
+                if (depth == 0)
+                {
+                    res.status = "nodata";
+                    return res;
+                }
+
+                return fail(stepName);
+            }
+
+            res.steps.Add(new Step { name = stepName, ok = true, ms = sw.ElapsedMilliseconds, detail = $"{pick.Value<string>("method") ?? "?"}: {Clip(pick.Value<string>("title") ?? pick.Value<string>("name") ?? pick.Value<string>("voice_name"), 60)}" });
+
+            string method = pick.Value<string>("method");
+            string next = pick.Value<string>("url");
+
+            if (method == "link")
+            {
+                if (!TryLocalizeLite(next, out url))
+                {
+                    res.steps.Add(new Step { name = "browse", ok = false, detail = "адрес вне Lampac: " + Clip(next, 100) });
+                    return fail("browse");
+                }
+
+                continue;
+            }
+
+            if (method == "call")
+            {
+                callUrl = next;
+                break;
+            }
+
+            // play (или метод не указан): url и есть ссылка на видео
+            mediaUrl = next;
+            break;
+        }
+
+        if (callUrl == null && mediaUrl == null)
+        {
+            res.steps.Add(new Step { name = "browse", ok = false, detail = $"не дошли до ссылки за {MaxWalkDepth} шагов" });
+            return fail("browse");
+        }
+        #endregion
+
+        #region 2. call: получить ссылку на видео, как это делает плеер
+        if (callUrl != null)
+        {
+            if (!TryLocalizeLite(callUrl, out string localCall))
+            {
+                res.steps.Add(new Step { name = "link", ok = false, detail = "адрес вне Lampac: " + Clip(callUrl, 100) });
+                return fail("link");
+            }
+
+            var sw = Stopwatch.StartNew();
+            var r = await GetAsync(localCall, 40, true, MaxBodyBytes * 4, ct).ConfigureAwait(false);
+            sw.Stop();
+
+            string resolved = null;
+            string why = r.error;
+            if (r.ok)
+            {
+                try
+                {
+                    var j = JToken.Parse(r.text);
+                    resolved = (j as JObject)?["url"]?.ToString();
+                    if (string.IsNullOrEmpty(resolved))
+                        resolved = ((j as JObject)?["data"] as JArray)?.OfType<JObject>().Select(i => i.Value<string>("url")).FirstOrDefault(u => !string.IsNullOrEmpty(u));
+                    if (string.IsNullOrEmpty(resolved))
+                        why = (j as JObject)?.Value<string>("msg") ?? "в ответе нет ссылки";
+                }
+                catch (JsonException)
+                {
+                    why = "ответ не JSON: " + Clip(r.text, 120);
+                }
+            }
+
+            if (string.IsNullOrEmpty(resolved))
+            {
+                res.steps.Add(new Step { name = "link", ok = false, ms = sw.ElapsedMilliseconds, detail = why });
+                return fail("link");
+            }
+
+            res.steps.Add(new Step { name = "link", ok = true, ms = sw.ElapsedMilliseconds });
+            mediaUrl = resolved;
+        }
+        #endregion
+
+        #region 3. манифест и первый сегмент (или первые байты файла)
+        return await CheckMediaAsync(res, mediaUrl, ct).ConfigureAwait(false);
+        #endregion
+    }
+
+    static async Task<CheckResult> CheckMediaAsync(CheckResult res, string mediaUrl, CancellationToken ct)
+    {
+        CheckResult fail(string at)
+        {
+            res.status = "fail";
+            res.failedAt = at;
+            return res;
+        }
+
+        string abs = ToAbsolute(mediaUrl, null);
+        if (abs == null)
+        {
+            res.steps.Add(new Step { name = "manifest", ok = false, detail = "некорректная ссылка: " + Clip(mediaUrl, 100) });
+            return fail("manifest");
+        }
+
+        bool local = TryLocalize(abs, out string reqUrl);
+        res.via = local ? "proxy" : "direct";
+        if (!local)
+            reqUrl = abs;
+
+        var sw = Stopwatch.StartNew();
+        var m = await GetAsync(reqUrl, 25, local, MaxBodyBytes, ct).ConfigureAwait(false);
+        sw.Stop();
+        long manifestMs = sw.ElapsedMilliseconds;
+
+        if (!m.ok)
+        {
+            res.steps.Add(new Step { name = "manifest", ok = false, ms = sw.ElapsedMilliseconds, detail = m.error });
+            return fail("manifest");
+        }
+
+        string text = m.text ?? string.Empty;
+
+        // HLS
+        if (text.TrimStart().StartsWith("#EXTM3U", StringComparison.Ordinal))
+        {
+            string playlistUrl = m.finalUrl ?? reqUrl;
+            string body = text;
+
+            // master-плейлист: берём первый вариант и грузим его
+            if (body.Contains("#EXT-X-STREAM-INF", StringComparison.Ordinal))
+            {
+                string variant = FirstUri(body, afterTag: "#EXT-X-STREAM-INF");
+                string variantAbs = ToAbsolute(variant, playlistUrl);
+                if (variantAbs == null)
+                {
+                    res.steps.Add(new Step { name = "manifest", ok = false, ms = sw.ElapsedMilliseconds, detail = "master без вариантов" });
+                    return fail("manifest");
+                }
+
+                bool vl = TryLocalize(variantAbs, out string vreq);
+                if (!vl)
+                    vreq = variantAbs;
+
+                var sw2 = Stopwatch.StartNew();
+                var v = await GetAsync(vreq, 25, vl, MaxBodyBytes, ct).ConfigureAwait(false);
+                sw2.Stop();
+
+                if (!v.ok || !(v.text ?? string.Empty).TrimStart().StartsWith("#EXTM3U", StringComparison.Ordinal))
+                {
+                    res.steps.Add(new Step { name = "manifest", ok = false, ms = manifestMs + sw2.ElapsedMilliseconds, detail = "вариант недоступен: " + (v.error ?? "не плейлист") });
+                    return fail("manifest");
+                }
+
+                playlistUrl = v.finalUrl ?? vreq;
+                body = v.text;
+                manifestMs += sw2.ElapsedMilliseconds;
+            }
+
+            res.steps.Add(new Step { name = "manifest", ok = true, ms = manifestMs, detail = "HLS" });
+
+            string seg = FirstUri(body, afterTag: "#EXTINF");
+            string segAbs = ToAbsolute(seg, playlistUrl);
+            if (segAbs == null)
+            {
+                res.steps.Add(new Step { name = "segment", ok = false, detail = "в плейлисте нет сегментов" });
+                return fail("segment");
+            }
+
+            return await CheckRangeAsync(res, segAbs, ct).ConfigureAwait(false);
+        }
+
+        // DASH
+        if (text.Contains("<MPD", StringComparison.Ordinal))
+        {
+            res.steps.Add(new Step { name = "manifest", ok = true, ms = sw.ElapsedMilliseconds, detail = "DASH" });
+            res.status = "ok";
+            return res;
+        }
+
+        // обычный файл: ответ получен, первые байты прочитаны
+        if (m.bytes > 0)
+        {
+            res.steps.Add(new Step { name = "manifest", ok = true, ms = sw.ElapsedMilliseconds, detail = $"файл, {m.contentType}" });
+            res.steps.Add(new Step { name = "segment", ok = true, detail = $"прочитано {m.bytes} байт" });
+            res.status = "ok";
+            return res;
+        }
+
+        res.steps.Add(new Step { name = "manifest", ok = false, ms = sw.ElapsedMilliseconds, detail = "пустой ответ" });
+        return fail("manifest");
+    }
+
+    static async Task<CheckResult> CheckRangeAsync(CheckResult res, string segAbs, CancellationToken ct)
+    {
+        bool local = TryLocalize(segAbs, out string reqUrl);
+        if (!local)
+            reqUrl = segAbs;
+
+        var sw = Stopwatch.StartNew();
+        var g = await GetAsync(reqUrl, 25, local, 2048, ct, range: "bytes=0-2047").ConfigureAwait(false);
+        sw.Stop();
+
+        if (!g.ok || g.bytes == 0)
+        {
+            res.steps.Add(new Step { name = "segment", ok = false, ms = sw.ElapsedMilliseconds, detail = g.error ?? "пустой ответ" });
+            res.status = "fail";
+            res.failedAt = "segment";
+            return res;
+        }
+
+        res.steps.Add(new Step { name = "segment", ok = true, ms = sw.ElapsedMilliseconds, detail = $"прочитано {g.bytes} байт" });
+        res.status = "ok";
+        return res;
+    }
+    #endregion
+
+    #region HTTP и разбор адресов
+    static string LocalBase() => $"http://{CoreInit.conf.listen.localhost}:{CoreInit.conf.listen.port}";
+
+    static readonly string[] LocalPrefixes = { "/lite/", "/proxy/", "/proxy-dash/", "/proxy", "/transcoding", "/tmdb/", "/cub/" };
+
+    /// <summary>Если адрес указывает на сам Lampac (по пути), переписывает его на localhost. Чужие адреса не трогает.</summary>
+    static bool TryLocalize(string url, out string local)
+    {
+        local = null;
+        if (string.IsNullOrWhiteSpace(url))
+            return false;
+
+        string path;
+        string rest;
+        if (url.StartsWith("/", StringComparison.Ordinal))
+        {
+            path = url;
+            rest = url;
+        }
+        else
+        {
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var u) || (u.Scheme != "http" && u.Scheme != "https"))
+                return false;
+
+            // адрес Lampac определяем по порту и пути: хост за обратным прокси может быть любым
+            path = u.AbsolutePath;
+            rest = u.PathAndQuery;
+            if (u.Port != CoreInit.conf.listen.port && !u.Host.Equals(CoreInit.conf.listen.localhost, StringComparison.OrdinalIgnoreCase) && !IsOwnHost(u))
+                return false;
+        }
+
+        if (!LocalPrefixes.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase)))
+            return false;
+
+        local = LocalBase() + rest;
+        return true;
+    }
+
+    static bool IsOwnHost(Uri u) => u.IsLoopback;
+
+    /// <summary>Ссылка на эндпоинт провайдера (/lite/...): хост игнорируем, всегда идём на localhost.</summary>
+    static bool TryLocalizeLite(string url, out string local)
+    {
+        local = null;
+        if (string.IsNullOrWhiteSpace(url))
+            return false;
+
+        string rest;
+        if (url.StartsWith("/", StringComparison.Ordinal))
+            rest = url;
+        else if (Uri.TryCreate(url, UriKind.Absolute, out var u) && (u.Scheme == "http" || u.Scheme == "https"))
+            rest = u.PathAndQuery;
+        else
+            return false;
+
+        if (!rest.StartsWith("/lite/", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        local = LocalBase() + rest;
+        return true;
+    }
+
+    static string ToAbsolute(string link, string baseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(link))
+            return null;
+
+        if (Uri.TryCreate(link, UriKind.Absolute, out var a) && (a.Scheme == "http" || a.Scheme == "https"))
+            return a.ToString();
+
+        if (link.StartsWith("/", StringComparison.Ordinal) && baseUrl == null)
+            return LocalBase() + link;
+
+        if (baseUrl != null && Uri.TryCreate(baseUrl, UriKind.Absolute, out var b) && Uri.TryCreate(b, link, out var r))
+            return r.ToString();
+
+        return null;
+    }
+
+    /// <summary>Первая строка-ссылка после тега (для master - после EXT-X-STREAM-INF, для media - после EXTINF).</summary>
+    static string FirstUri(string m3u8, string afterTag)
+    {
+        bool seen = false;
+        foreach (var raw in m3u8.Split('\n'))
+        {
+            string line = raw.Trim();
+            if (line.Length == 0)
+                continue;
+
+            if (line.StartsWith(afterTag, StringComparison.Ordinal))
+            {
+                seen = true;
+                continue;
+            }
+
+            if (seen && !line.StartsWith("#", StringComparison.Ordinal))
+                return line;
+        }
+
+        return null;
+    }
+
+    sealed class GetResult
+    {
+        public bool ok;
+        public string error;
+        public string text;
+        public int bytes;
+        public string contentType;
+        public string finalUrl;
+    }
+
+    static async Task<GetResult> GetAsync(string url, int timeoutSeconds, bool withPasswd, int maxBytes, CancellationToken ct = default, string range = null)
+    {
+        var r = new GetResult();
+
+        try
+        {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
+
+            using var req = new HttpRequestMessage(HttpMethod.Get, url);
+            if (withPasswd && !string.IsNullOrEmpty(CoreInit.rootPasswd))
+                req.Headers.TryAddWithoutValidation("lcrqpasswd", CoreInit.rootPasswd);
+            if (range != null)
+                req.Headers.TryAddWithoutValidation("Range", range);
+
+            using var resp = await Client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cts.Token).ConfigureAwait(false);
+
+            int code = (int)resp.StatusCode;
+            r.contentType = resp.Content.Headers.ContentType?.MediaType;
+            r.finalUrl = resp.RequestMessage?.RequestUri?.ToString();
+
+            if (code < 200 || code >= 300)
+            {
+                r.error = "HTTP " + code;
+                return r;
+            }
+
+            await using var stream = await resp.Content.ReadAsStreamAsync(cts.Token).ConfigureAwait(false);
+            var buf = new byte[maxBytes];
+            int total = 0;
+            while (total < buf.Length)
+            {
+                int n = await stream.ReadAsync(buf.AsMemory(total, buf.Length - total), cts.Token).ConfigureAwait(false);
+                if (n <= 0)
+                    break;
+                total += n;
+            }
+
+            r.bytes = total;
+            r.text = Encoding.UTF8.GetString(buf, 0, total);
+            r.ok = true;
+            return r;
+        }
+        catch (OperationCanceledException)
+        {
+            r.error = ct.IsCancellationRequested ? "отменено" : $"таймаут {timeoutSeconds} с";
+            return r;
+        }
+        catch (Exception ex)
+        {
+            r.error = Clip(ex.InnerException?.Message ?? ex.Message, 160);
+            return r;
+        }
+    }
+    #endregion
+
+    #region утилиты
+    async Task<Sample> FindSampleAsync(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+            return null;
+
+        var (list, _) = await LoadSamplesAsync().ConfigureAwait(false);
+        return list.FirstOrDefault(s => s.id == id);
+    }
+
+    async Task<string> ReadBodyAsync()
+    {
+        using var sr = new StreamReader(Request.Body, Encoding.UTF8);
+        return await sr.ReadToEndAsync().ConfigureAwait(false);
+    }
+
+    ActionResult Err(int status, string error, string detail = null)
+    {
+        return new ContentResult
+        {
+            StatusCode = status,
+            ContentType = "application/json; charset=utf-8",
+            Content = JsonConvert.SerializeObject(new { ok = false, error, detail })
+        };
+    }
+
+    static string Clip(string s, int max)
+    {
+        if (string.IsNullOrEmpty(s))
+            return s;
+        return s.Length <= max ? s : s.Substring(0, max);
+    }
+    #endregion
+}
