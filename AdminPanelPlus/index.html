@@ -6145,35 +6145,41 @@
         hc.stop = false;
         renderHealth();
         try {
-          const queue = [];
+          // провайдеры идут параллельно (до трёх), а тайтлы одного провайдера строго по очереди:
+          // так проверка сама не создаёт всплеск соединений к одному хосту и не вызывает ложных таймаутов
+          const queue = keys.slice();
+          let runTotal = 0;
           keys.forEach(k => {
             const row = hc.rows[k];
             row.results = {};
             row.running = true;
-            Object.keys(row.targets).forEach(sid => queue.push([k, sid]));
+            runTotal += Object.keys(row.targets).length;
           });
           renderHealth();
 
           const runLabel = tr('Проверка провайдеров', 'Checking providers');
           let runDone = 0;
-          const runTotal = queue.length;
           hcProgSet(runLabel, 0, runTotal);
 
           const worker = async () => {
             while (queue.length && !hc.stop) {
-              const [k, sid] = queue.shift();
+              const k = queue.shift();
               const row = hc.rows[k];
-              try {
-                row.results[sid] = await hcJson('/adminpanel/api/healthcheck/run', {
-                  method: 'POST', headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ sample: sid, url: row.targets[sid] })
-                });
-              } catch (e) {
-                row.results[sid] = { status: 'fail', error: e.message || String(e), steps: [] };
+              for (const sid of Object.keys(row.targets)) {
+                if (hc.stop) break;
+                try {
+                  row.results[sid] = await hcJson('/adminpanel/api/healthcheck/run', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sample: sid, url: row.targets[sid] })
+                  });
+                } catch (e) {
+                  row.results[sid] = { status: 'fail', error: e.message || String(e), steps: [] };
+                }
+                runDone++;
+                hcProgSet(runLabel, runDone, runTotal);
+                renderHealth();
               }
-              if (!Object.keys(row.targets).some(t => !row.results[t])) row.running = false;
-              runDone++;
-              hcProgSet(runLabel, runDone, runTotal);
+              row.running = false;
               renderHealth();
             }
           };
@@ -6211,7 +6217,7 @@
       const HC_KIND = {
         ok: ['доступен', 'reachable'], dns: ['проблема DNS', 'DNS problem'], timeout: ['нет соединения (таймаут)', 'no connection (timeout)'],
         unreachable: ['сеть недоступна', 'unreachable'], refused: ['соединение отклонено', 'connection refused'],
-        skip: ['не проверялось', 'skipped'], reset: ['соединение сброшено', 'connection reset'], tls: ['TLS не установился (признак фильтрации)', 'TLS failed (filtering sign)'], error: ['ошибка', 'error']
+        skip: ['не проверялось', 'skipped'], cert: ['соединение есть, сертификат не подходит', 'connected, certificate invalid'], reset: ['соединение сброшено', 'connection reset'], tls: ['TLS не установился (признак фильтрации)', 'TLS failed (filtering sign)'], error: ['ошибка', 'error']
       };
 
       function hcProviderCfg(balanser) {
@@ -6234,7 +6240,7 @@
 
       function hcAggregateHosts() {
         const map = new Map();
-        const get = h => { if (!map.has(h)) map.set(h, { host: h, roles: new Set(), ips: new Set(), providers: new Set(), reqFailed: new Set(), errors: new Set(), upstream: false, tested: false, provProxy: false }); return map.get(h); };
+        const get = h => { if (!map.has(h)) map.set(h, { host: h, roles: new Set(), ips: new Set(), providers: new Set(), reqFailed: new Set(), errors: new Set(), upstream: false, tested: false, provProxy: false, reqOk: false }); return map.get(h); };
         hc.order.forEach(k => {
           const row = hc.rows[k];
           const pname = row.name || k;
@@ -6254,16 +6260,20 @@
               e.roles.add(x.role); e.providers.add(pname);
               (x.ips || []).forEach(ip => e.ips.add(ip));
               if (x.upstreamProxy) e.upstream = true;
-              if (!x.ok) { e.reqFailed.add(pname); if (x.error) e.errors.add(x.error); }
+              if (x.ok) e.reqOk = true;
+              else { e.reqFailed.add(pname); if (x.error) e.errors.add(x.error); }
             });
           });
         });
         map.forEach(e => {
           e.probe = hc.probe[e.host] || null;
           if (e.probe) (e.probe.ips || []).forEach(ip => e.ips.add(ip));
-          e.net = !!(e.probe && !e.probe.reachable);       // сервер не смог связаться с доменом: кандидат для VPN
+          // проба не прошла, но реальный запрос к этому домену в этом прогоне удался: нестабильно, а не заблокировано
+          e.flaky = !!(e.probe && !e.probe.reachable && e.reqOk);
+          e.net = !!(e.probe && !e.probe.reachable && !e.reqOk);   // сервер не смог связаться с доменом: кандидат для VPN
+          e.cert = !!(e.probe && ((e.probe.v4 && e.probe.v4.kind === 'cert') || (e.probe.v6 && e.probe.v6.kind === 'cert')));
           e.partial = !!(e.probe && e.probe.partial);       // работает только одно из IPv4/IPv6
-          e.bad = e.net || e.partial || e.reqFailed.size > 0; // любой сбой, в том числе ответ с ошибкой от доступного сервера
+          e.bad = e.net || e.flaky || e.cert || e.partial || e.reqFailed.size > 0; // любой сбой, в том числе ответ с ошибкой от доступного сервера
         });
         return Array.from(map.values()).sort((a, b) => (b.net - a.net) || (b.bad - a.bad) || a.host.localeCompare(b.host));
       }
@@ -6272,6 +6282,7 @@
 
       function hcFamText(f) {
         const k = HC_KIND[f.kind] || HC_KIND.error;
+        if (f.kind === 'cert') return tr(k[0], k[1]) + (f.detail ? ': ' + f.detail : '');
         if (f.reachable) return tr(k[0], k[1]) + ' (HTTP ' + f.code + (f.ms ? ', ' + f.ms + ' ' + tr('мс', 'ms') : '') + ')';
         return tr(k[0], k[1]) + (f.detail && f.kind !== 'timeout' ? ': ' + f.detail : '');
       }
@@ -6337,6 +6348,7 @@
           r.appendChild(hcEl('div', 'hc-det', Array.from(e.providers).join(', ') + (e.provProxy ? ' · useproxy' : '')));
           const st = hcEl('div', 'hc-det');
           st.appendChild(hcEl('div', null, hcProbeText(e.probe)));
+          if (e.flaky) st.appendChild(hcEl('div', null, tr('но реальный запрос к нему удался: нестабильно, не блокировка', 'but a real request to it succeeded: flaky, not blocked')));
           if (e.reqFailed.size) st.appendChild(hcEl('div', null, tr('сбой запроса: ', 'request failed: ') + (Array.from(e.errors).slice(0, 2).join('; ') || Array.from(e.reqFailed).join(', '))));
           r.appendChild(st);
           r.appendChild(hcEl('div', 'mono', Array.from(e.ips).join(', ') || '—'));
@@ -6381,7 +6393,7 @@
         all.forEach(e => {
           const p = e.probe;
           const fam = f => !f ? '-' : (f.kind === 'skip' ? 'skipped(' + f.detail + ')' : (f.reachable ? 'ok HTTP ' + f.code + ' ' + f.ms + 'ms' : f.kind + (f.detail ? ' (' + f.detail + ')' : '')));
-          const net = !p ? 'not probed' : ((p.reachable ? 'ok' : 'UNREACHABLE') + (p.partial ? ' PARTIAL' : '') + ((p.v4 || p.v6) ? ' [v4 ' + fam(p.v4) + '; v6 ' + fam(p.v6) + ']' : ' ' + p.kind + (p.detail ? ' (' + p.detail + ')' : '')));
+          const net = !p ? 'not probed' : ((p.reachable ? 'ok' : (e.reqOk ? 'PROBE FAILED but real request ok (flaky)' : 'UNREACHABLE')) + (p.partial ? ' PARTIAL' : '') + ((p.v4 || p.v6) ? ' [v4 ' + fam(p.v4) + '; v6 ' + fam(p.v6) + ']' : ' ' + p.kind + (p.detail ? ' (' + p.detail + ')' : '')));
           const req = e.reqFailed.size ? 'FAIL ' + Array.from(e.reqFailed).join(',') + (e.errors.size ? ' (' + Array.from(e.errors).join('; ') + ')' : '') : (e.tested ? 'ok' : 'not tested');
           lines.push(e.host + ' | ' + Array.from(e.roles).join(',') + ' | providers: ' + Array.from(e.providers).join(',') + (e.provProxy ? ' (useproxy)' : '') + ' | net: ' + net + ' | req: ' + req + ' | ips: ' + (Array.from(e.ips).join(',') || '-'));
         });

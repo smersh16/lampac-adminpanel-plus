@@ -381,6 +381,7 @@ public class HealthCheckController : BaseController
         #region 1. поиск, затем спуск по первому элементу до ссылки на видео
         string mediaUrl = null;
         string callUrl = null;
+        Dictionary<string, string> mediaHeaders = null;
 
         for (int depth = 0; depth <= MaxWalkDepth; depth++)
         {
@@ -452,6 +453,7 @@ public class HealthCheckController : BaseController
 
             // play (или метод не указан): url и есть ссылка на видео
             mediaUrl = next;
+            mediaHeaders = ReadHeaders(pick);
             break;
         }
 
@@ -483,8 +485,13 @@ public class HealthCheckController : BaseController
                 {
                     var j = JToken.Parse(r.text);
                     resolved = (j as JObject)?["url"]?.ToString();
+                    mediaHeaders = ReadHeaders(j as JObject);
                     if (string.IsNullOrEmpty(resolved))
-                        resolved = ((j as JObject)?["data"] as JArray)?.OfType<JObject>().Select(i => i.Value<string>("url")).FirstOrDefault(u => !string.IsNullOrEmpty(u));
+                    {
+                        var first = ((j as JObject)?["data"] as JArray)?.OfType<JObject>().FirstOrDefault(i => !string.IsNullOrEmpty(i.Value<string>("url")));
+                        resolved = first?.Value<string>("url");
+                        mediaHeaders ??= ReadHeaders(first);
+                    }
                     if (string.IsNullOrEmpty(resolved))
                         why = (j as JObject)?.Value<string>("msg") ?? "в ответе нет ссылки";
                 }
@@ -506,11 +513,11 @@ public class HealthCheckController : BaseController
         #endregion
 
         #region 3. манифест и первый сегмент (или первые байты файла)
-        return await CheckMediaAsync(res, mediaUrl, ct).ConfigureAwait(false);
+        return await CheckMediaAsync(res, mediaUrl, mediaHeaders, ct).ConfigureAwait(false);
         #endregion
     }
 
-    static async Task<CheckResult> CheckMediaAsync(CheckResult res, string mediaUrl, CancellationToken ct)
+    static async Task<CheckResult> CheckMediaAsync(CheckResult res, string mediaUrl, IReadOnlyDictionary<string, string> headers, CancellationToken ct)
     {
         CheckResult fail(string at)
         {
@@ -532,7 +539,7 @@ public class HealthCheckController : BaseController
             reqUrl = abs;
 
         var sw = Stopwatch.StartNew();
-        var m = await GetAsync(reqUrl, 25, local, MaxBodyBytes, ct).ConfigureAwait(false);
+        var m = await GetAsync(reqUrl, 25, local, MaxBodyBytes, ct, headers: local ? null : headers).ConfigureAwait(false);
         sw.Stop();
         long manifestMs = sw.ElapsedMilliseconds;
         NoteHost(res, reqUrl, local, "manifest", m.ok, m.error);
@@ -567,7 +574,7 @@ public class HealthCheckController : BaseController
                     vreq = variantAbs;
 
                 var sw2 = Stopwatch.StartNew();
-                var v = await GetAsync(vreq, 25, vl, MaxBodyBytes, ct).ConfigureAwait(false);
+                var v = await GetAsync(vreq, 25, vl, MaxBodyBytes, ct, headers: vl ? null : headers).ConfigureAwait(false);
                 sw2.Stop();
                 NoteHost(res, vreq, vl, "manifest", v.ok, v.error);
 
@@ -592,7 +599,7 @@ public class HealthCheckController : BaseController
                 return fail("segment");
             }
 
-            return await CheckRangeAsync(res, segAbs, ct).ConfigureAwait(false);
+            return await CheckRangeAsync(res, segAbs, headers, ct).ConfigureAwait(false);
         }
 
         // DASH
@@ -616,14 +623,26 @@ public class HealthCheckController : BaseController
         return fail("manifest");
     }
 
-    static async Task<CheckResult> CheckRangeAsync(CheckResult res, string segAbs, CancellationToken ct)
+    static async Task<CheckResult> CheckRangeAsync(CheckResult res, string segAbs, IReadOnlyDictionary<string, string> headers, CancellationToken ct)
     {
         bool local = TryLocalize(segAbs, out string reqUrl);
         if (!local)
             reqUrl = segAbs;
 
         var sw = Stopwatch.StartNew();
-        var g = await GetAsync(reqUrl, 25, local, 2048, ct, range: "bytes=0-2047").ConfigureAwait(false);
+        var g = await GetAsync(reqUrl, 25, local, 2048, ct, range: "bytes=0-2047", headers: local ? null : headers).ConfigureAwait(false);
+
+        // часть CDN отвечает ошибкой именно на Range: повторяем без него, читаем те же первые байты
+        if (!g.ok && g.error != null && g.error.StartsWith("HTTP", StringComparison.Ordinal) && !ct.IsCancellationRequested)
+        {
+            var g2 = await GetAsync(reqUrl, 25, local, 2048, ct, headers: local ? null : headers).ConfigureAwait(false);
+            if (g2.ok && g2.bytes > 0)
+            {
+                g = g2;
+                g.error = null;
+            }
+        }
+
         sw.Stop();
         NoteHost(res, reqUrl, local, "segment", g.ok && g.bytes > 0, g.error ?? (g.ok ? "пустой ответ" : null));
 
@@ -642,6 +661,29 @@ public class HealthCheckController : BaseController
     #endregion
 
     #region HTTP и разбор адресов
+    static Dictionary<string, string> ReadHeaders(JObject o)
+    {
+        try
+        {
+            var h = o?["headers"] as JObject;
+            if (h == null || h.Count == 0)
+                return null;
+
+            var d = new Dictionary<string, string>();
+            foreach (var p in h.Properties())
+            {
+                if (p.Value.Type == JTokenType.String)
+                    d[p.Name] = p.Value.ToString();
+            }
+
+            return d.Count > 0 ? d : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     static readonly Regex RjsonArg = new(@"([?&])rjson=[^&]*", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     // ссылки провайдеров на следующий шаг часто без rjson: тогда Lampac отвечает HTML, а не JSON
@@ -763,7 +805,7 @@ public class HealthCheckController : BaseController
         public string finalUrl;
     }
 
-    static async Task<GetResult> GetAsync(string url, int timeoutSeconds, bool withPasswd, int maxBytes, CancellationToken ct = default, string range = null)
+    static async Task<GetResult> GetAsync(string url, int timeoutSeconds, bool withPasswd, int maxBytes, CancellationToken ct = default, string range = null, IReadOnlyDictionary<string, string> headers = null)
     {
         var r = new GetResult();
 
@@ -776,6 +818,16 @@ public class HealthCheckController : BaseController
             using var req = new HttpRequestMessage(HttpMethod.Get, url);
             if (withPasswd && !string.IsNullOrEmpty(CoreInit.rootPasswd))
                 req.Headers.TryAddWithoutValidation("lcrqpasswd", CoreInit.rootPasswd);
+            if (headers != null)
+            {
+                // заголовки, которые провайдер требует для прямой ссылки (Referer, User-Agent и т.п.): плеер отправляет их же
+                foreach (var h in headers)
+                {
+                    if (!string.IsNullOrEmpty(h.Key) && h.Value != null)
+                        req.Headers.TryAddWithoutValidation(h.Key, h.Value);
+                }
+            }
+
             if (range != null)
                 req.Headers.TryAddWithoutValidation("Range", range);
 
@@ -911,7 +963,7 @@ public class HealthCheckController : BaseController
     }
 
     // IP определяются DNS-резолвером сервера Lampac: резолвер роутера или VPN может отдать другие адреса
-    static async Task<string[]> ResolveOneAsync(string host, CancellationToken ct)
+    static async Task<string[]> ResolveOneAsync(string host, CancellationToken ct, int timeoutSeconds = 3)
     {
         if (IPAddress.TryParse(host, out var literal))
             return new[] { literal.ToString() };
@@ -919,7 +971,7 @@ public class HealthCheckController : BaseController
         try
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            cts.CancelAfter(TimeSpan.FromSeconds(3));
+            cts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
             var addrs = await Dns.GetHostAddressesAsync(host, cts.Token).ConfigureAwait(false);
             return addrs.Select(a => a.ToString()).Distinct().Take(8).ToArray();
         }
@@ -1074,9 +1126,19 @@ public class HealthCheckController : BaseController
         }
         else if (tls)
         {
-            // TCP до сервера дошёл, но TLS не установился: типичный признак фильтрации по SNI или подмены сертификата
-            f.kind = "tls";
-            f.detail = Clip(ex.InnerException?.Message ?? ex.Message, 120);
+            string msg = ex.InnerException?.Message ?? ex.Message;
+            if (msg.Contains("remote certificate", StringComparison.OrdinalIgnoreCase))
+            {
+                // рукопожатие прошло, не прошла только проверка сертификата (чужое имя/самоподписанный): сеть до узла работает
+                f.kind = "cert";
+                f.detail = Clip(msg, 120);
+            }
+            else
+            {
+                // TLS оборвался до сертификата: типичный признак фильтрации по SNI
+                f.kind = "tls";
+                f.detail = Clip(msg, 120);
+            }
         }
         else
         {
@@ -1086,6 +1148,25 @@ public class HealthCheckController : BaseController
     }
 
     static async Task<FamilyProbe> ProbeFamilyAsync(string host, AddressFamily family, CancellationToken ct)
+    {
+        var f = await ProbeFamilyOnceAsync(host, family, ct).ConfigureAwait(false);
+
+        // единичный сбой соединения не считаем недоступностью: повторяем один раз
+        if (!f.reachable && (f.kind is "timeout" or "reset" or "unreachable") && !ct.IsCancellationRequested)
+        {
+            await Task.Delay(400, ct).ConfigureAwait(false);
+            var again = await ProbeFamilyOnceAsync(host, family, ct).ConfigureAwait(false);
+            if (again.reachable)
+            {
+                again.detail = (again.detail != null ? again.detail + "; " : "") + "со 2-й попытки";
+                return again;
+            }
+        }
+
+        return f;
+    }
+
+    static async Task<FamilyProbe> ProbeFamilyOnceAsync(string host, AddressFamily family, CancellationToken ct)
     {
         var f = new FamilyProbe();
         var sw = Stopwatch.StartNew();
@@ -1102,6 +1183,7 @@ public class HealthCheckController : BaseController
         catch (Exception ex)
         {
             Classify(ex, ct, f);
+            f.reachable = f.kind == "cert";
         }
 
         f.ms = sw.ElapsedMilliseconds;
@@ -1113,6 +1195,11 @@ public class HealthCheckController : BaseController
     {
         var r = new ProbeResult { host = host };
         r.ips = await ResolveOneAsync(host, ct).ConfigureAwait(false);
+        if (r.ips.Length == 0 && !ct.IsCancellationRequested)
+        {
+            await Task.Delay(300, ct).ConfigureAwait(false);
+            r.ips = await ResolveOneAsync(host, ct, 5).ConfigureAwait(false);
+        }
 
         if (r.ips.Length == 0)
         {
