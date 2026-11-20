@@ -389,7 +389,8 @@ public class HealthCheckController : BaseController
 
             if (!r.ok)
             {
-                res.steps.Add(new Step { name = stepName, ok = false, ms = sw.ElapsedMilliseconds, detail = r.error });
+                string why503 = r.error == "HTTP 503" && depth == 0 ? "HTTP 503: провайдер не дал результата (тайтла нет в каталоге или его сайт не ответил)" : r.error;
+                res.steps.Add(new Step { name = stepName, ok = false, ms = sw.ElapsedMilliseconds, detail = why503 });
                 return fail(stepName);
             }
 
@@ -406,7 +407,7 @@ public class HealthCheckController : BaseController
 
             if (doc is JObject o && o.Value<bool?>("accsdb") == true)
             {
-                res.steps.Add(new Step { name = stepName, ok = false, ms = sw.ElapsedMilliseconds, detail = "отказ accsdb" });
+                res.steps.Add(new Step { name = stepName, ok = false, ms = sw.ElapsedMilliseconds, detail = "отказ: " + Clip(o.Value<string>("msg") ?? "accsdb", 120) });
                 return fail(stepName);
             }
 
@@ -437,6 +438,7 @@ public class HealthCheckController : BaseController
                     return fail("browse");
                 }
 
+                url = WithRjson(url);
                 continue;
             }
 
@@ -638,6 +640,16 @@ public class HealthCheckController : BaseController
     #endregion
 
     #region HTTP и разбор адресов
+    static readonly Regex RjsonArg = new(@"([?&])rjson=[^&]*", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    // ссылки провайдеров на следующий шаг часто без rjson: тогда Lampac отвечает HTML, а не JSON
+    static string WithRjson(string url)
+    {
+        if (RjsonArg.IsMatch(url))
+            return RjsonArg.Replace(url, "$1rjson=true");
+        return url + (url.Contains('?') ? "&" : "?") + "rjson=true";
+    }
+
     static string LocalBase() => $"http://{CoreInit.conf.listen.localhost}:{CoreInit.conf.listen.port}";
 
     static readonly string[] LocalPrefixes = { "/lite/", "/proxy/", "/proxy-dash/", "/proxy", "/transcoding", "/tmdb/", "/cub/" };
@@ -753,9 +765,10 @@ public class HealthCheckController : BaseController
     {
         var r = new GetResult();
 
+        CancellationTokenSource cts = null;
         try
         {
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
 
             using var req = new HttpRequestMessage(HttpMethod.Get, url);
@@ -794,13 +807,22 @@ public class HealthCheckController : BaseController
         }
         catch (OperationCanceledException)
         {
-            r.error = ct.IsCancellationRequested ? "отменено" : $"таймаут {timeoutSeconds} с";
+            if (ct.IsCancellationRequested)
+                r.error = "отменено";
+            else if (cts != null && cts.IsCancellationRequested)
+                r.error = $"нет ответа за {timeoutSeconds} с";
+            else
+                r.error = "не удалось подключиться за 10 с (connect timeout)";
             return r;
         }
         catch (Exception ex)
         {
             r.error = Clip(ex.InnerException?.Message ?? ex.Message, 160);
             return r;
+        }
+        finally
+        {
+            cts?.Dispose();
         }
     }
     #endregion
@@ -905,21 +927,141 @@ public class HealthCheckController : BaseController
         }
     }
 
-    public sealed class ResolveRequest
+    public sealed class ProbeRequest
     {
         public List<string> hosts { get; set; }
     }
 
-    /// <summary>Только DNS-запрос для списка доменов (например, адресов провайдеров из init.conf); соединений с ними не открывается.</summary>
-    [HttpPost]
-    [Route("/adminpanel/api/healthcheck/resolve")]
-    public async Task<ActionResult> Resolve()
+    sealed class ProbeResult
     {
-        string body = await ReadBodyAsync().ConfigureAwait(false);
-        ResolveRequest req;
+        public string host { get; set; }
+        public bool reachable { get; set; }
+        // ok | dns | timeout | unreachable | refused | reset | tls | error
+        public string kind { get; set; } = "error";
+        public int code { get; set; }
+        public long ms { get; set; }
+        public string detail { get; set; }
+        public string[] ips { get; set; } = Array.Empty<string>();
+    }
+
+    static readonly HttpClient ProbeClient = new(new SocketsHttpHandler
+    {
+        AllowAutoRedirect = false,
+        ConnectTimeout = TimeSpan.FromSeconds(6),
+        PooledConnectionLifetime = TimeSpan.FromSeconds(30)
+    })
+    {
+        Timeout = TimeSpan.FromSeconds(10)
+    };
+
+    // адреса, к которым не подключаемся: пустой DNS-ответ (0.0.0.0), локальные и частные сети
+    static bool IsSpecialIp(IPAddress ip)
+    {
+        if (IPAddress.IsLoopback(ip) || ip.Equals(IPAddress.Any) || ip.Equals(IPAddress.IPv6Any))
+            return true;
+
+        if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
+            return ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal || (ip.GetAddressBytes()[0] & 0xFE) == 0xFC;
+
+        var b = ip.GetAddressBytes();
+        return b[0] == 0 || b[0] == 10 || b[0] == 127
+            || (b[0] == 172 && b[1] >= 16 && b[1] <= 31)
+            || (b[0] == 192 && b[1] == 168)
+            || (b[0] == 169 && b[1] == 254)
+            || (b[0] == 100 && b[1] >= 64 && b[1] <= 127);
+    }
+
+    /// <summary>Что видит сервер Lampac: DNS, затем TLS-соединение на 443 и любой HTTP-ответ (код не важен: важно, что соединение вообще есть).</summary>
+    static async Task<ProbeResult> ProbeOneAsync(string host, CancellationToken ct)
+    {
+        var r = new ProbeResult { host = host };
+        r.ips = await ResolveOneAsync(host, ct).ConfigureAwait(false);
+
+        if (r.ips.Length == 0)
+        {
+            r.kind = "dns";
+            r.detail = "DNS не вернул адресов";
+            return r;
+        }
+
+        if (r.ips.Any(a => IPAddress.TryParse(a, out var ip) && IsSpecialIp(ip)))
+        {
+            r.kind = "dns";
+            r.detail = "резолвится в служебный адрес " + r.ips.First(a => IPAddress.TryParse(a, out var ip) && IsSpecialIp(ip)) + " (похоже на блокировку DNS)";
+            return r;
+        }
+
+        var sw = Stopwatch.StartNew();
         try
         {
-            req = JsonConvert.DeserializeObject<ResolveRequest>(body ?? string.Empty);
+            string target = IPAddress.TryParse(host, out var lit) && lit.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6 ? "[" + host + "]" : host;
+            using var req = new HttpRequestMessage(HttpMethod.Get, "https://" + target + "/");
+            using var resp = await ProbeClient.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+            r.reachable = true;
+            r.kind = "ok";
+            r.code = (int)resp.StatusCode;
+        }
+        catch (OperationCanceledException)
+        {
+            if (ct.IsCancellationRequested)
+            {
+                r.kind = "error";
+                r.detail = "отменено";
+            }
+            else
+            {
+                r.kind = "timeout";
+                r.detail = "нет соединения за 6-10 с";
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            var se = ex.InnerException as System.Net.Sockets.SocketException ?? ex.InnerException?.InnerException as System.Net.Sockets.SocketException;
+            if (se != null)
+            {
+                r.kind = se.SocketErrorCode switch
+                {
+                    System.Net.Sockets.SocketError.ConnectionRefused => "refused",
+                    System.Net.Sockets.SocketError.TimedOut => "timeout",
+                    System.Net.Sockets.SocketError.HostUnreachable or System.Net.Sockets.SocketError.NetworkUnreachable => "unreachable",
+                    System.Net.Sockets.SocketError.ConnectionReset => "reset",
+                    System.Net.Sockets.SocketError.HostNotFound or System.Net.Sockets.SocketError.TryAgain => "dns",
+                    _ => "error"
+                };
+                r.detail = se.SocketErrorCode.ToString();
+            }
+            else if (ex.InnerException is System.Security.Authentication.AuthenticationException || ex.HttpRequestError == HttpRequestError.SecureConnectionError)
+            {
+                // TCP до сервера дошёл, но TLS не установился: типичный признак фильтрации по SNI
+                r.kind = "tls";
+                r.detail = Clip(ex.InnerException?.Message ?? ex.Message, 120);
+            }
+            else
+            {
+                r.kind = "error";
+                r.detail = Clip(ex.InnerException?.Message ?? ex.Message, 120);
+            }
+        }
+        catch (Exception ex)
+        {
+            r.kind = "error";
+            r.detail = Clip(ex.Message, 120);
+        }
+
+        r.ms = sw.ElapsedMilliseconds;
+        return r;
+    }
+
+    /// <summary>Проверка доступности доменов с сервера Lampac. Адреса берутся из настроек и ссылок провайдеров; только админ панели, частные адреса не опрашиваются.</summary>
+    [HttpPost]
+    [Route("/adminpanel/api/healthcheck/probe")]
+    public async Task<ActionResult> Probe()
+    {
+        string body = await ReadBodyAsync().ConfigureAwait(false);
+        ProbeRequest req;
+        try
+        {
+            req = JsonConvert.DeserializeObject<ProbeRequest>(body ?? string.Empty);
         }
         catch (JsonException ex)
         {
@@ -933,12 +1075,22 @@ public class HealthCheckController : BaseController
             .Take(60)
             .ToList();
 
-        var map = new Dictionary<string, string[]>();
-        var tasks = list.Select(async h => (h, ips: await ResolveOneAsync(h, HttpContext.RequestAborted).ConfigureAwait(false))).ToList();
-        foreach (var (h, ips) in await Task.WhenAll(tasks).ConfigureAwait(false))
-            map[h] = ips;
+        var gate = new SemaphoreSlim(8, 8);
+        var tasks = list.Select(async h =>
+        {
+            await gate.WaitAsync(HttpContext.RequestAborted).ConfigureAwait(false);
+            try
+            {
+                return await ProbeOneAsync(h, HttpContext.RequestAborted).ConfigureAwait(false);
+            }
+            finally
+            {
+                gate.Release();
+            }
+        }).ToList();
 
-        return Json(new { ips = map });
+        var results = await Task.WhenAll(tasks).ConfigureAwait(false);
+        return Json(new { probe = results });
     }
     #endregion
 
