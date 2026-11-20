@@ -11,6 +11,8 @@ using System.IO;
 using System.Net;
 using System.Linq;
 using System.Net.Http;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -932,27 +934,87 @@ public class HealthCheckController : BaseController
         public List<string> hosts { get; set; }
     }
 
+    sealed class FamilyProbe
+    {
+        public bool reachable { get; set; }
+        // ok | timeout | unreachable | refused | reset | tls | dns | skip | error
+        public string kind { get; set; } = "error";
+        public int code { get; set; }
+        public long ms { get; set; }
+        public string detail { get; set; }
+    }
+
     sealed class ProbeResult
     {
         public string host { get; set; }
-        public bool reachable { get; set; }
-        // ok | dns | timeout | unreachable | refused | reset | tls | error
+        public bool reachable { get; set; }      // работает хотя бы одно семейство адресов
+        public bool partial { get; set; }        // одно семейство работает, другое нет
         public string kind { get; set; } = "error";
         public int code { get; set; }
         public long ms { get; set; }
         public string detail { get; set; }
         public string[] ips { get; set; } = Array.Empty<string>();
+        public FamilyProbe v4 { get; set; }
+        public FamilyProbe v6 { get; set; }
     }
 
-    static readonly HttpClient ProbeClient = new(new SocketsHttpHandler
+    static HttpClient MakeProbeClient(AddressFamily family) => new(new SocketsHttpHandler
     {
         AllowAutoRedirect = false,
         ConnectTimeout = TimeSpan.FromSeconds(6),
-        PooledConnectionLifetime = TimeSpan.FromSeconds(30)
+        PooledConnectionLifetime = TimeSpan.FromSeconds(30),
+        // подключаемся адресами только одного семейства: так видно, какой из IPv4/IPv6 работает
+        ConnectCallback = async (ctx, token) =>
+        {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
+            cts.CancelAfter(TimeSpan.FromSeconds(6));
+            var socket = new Socket(family, SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+            try
+            {
+                var addrs = await Dns.GetHostAddressesAsync(ctx.DnsEndPoint.Host, family, cts.Token).ConfigureAwait(false);
+                if (addrs.Length == 0)
+                    throw new SocketException((int)SocketError.HostNotFound);
+
+                await socket.ConnectAsync(addrs, ctx.DnsEndPoint.Port, cts.Token).ConfigureAwait(false);
+                return new NetworkStream(socket, ownsSocket: true);
+            }
+            catch (OperationCanceledException) when (!token.IsCancellationRequested)
+            {
+                socket.Dispose();
+                throw new SocketException((int)SocketError.TimedOut);
+            }
+            catch
+            {
+                socket.Dispose();
+                throw;
+            }
+        }
     })
     {
         Timeout = TimeSpan.FromSeconds(10)
     };
+
+    static readonly HttpClient ProbeClient4 = MakeProbeClient(AddressFamily.InterNetwork);
+    static readonly HttpClient ProbeClient6 = MakeProbeClient(AddressFamily.InterNetworkV6);
+
+    // есть ли у Lampac (в его контейнере) глобальный IPv6: без него проверять IPv6-адреса бессмысленно
+    static bool ServerHasIpv6()
+    {
+        try
+        {
+            return NetworkInterface.GetAllNetworkInterfaces().Any(n =>
+                n.OperationalStatus == OperationalStatus.Up
+                && n.NetworkInterfaceType != NetworkInterfaceType.Loopback
+                && n.GetIPProperties().UnicastAddresses.Any(a =>
+                    a.Address.AddressFamily == AddressFamily.InterNetworkV6
+                    && !a.Address.IsIPv6LinkLocal
+                    && !IPAddress.IsLoopback(a.Address)));
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
     // адреса, к которым не подключаемся: пустой DNS-ответ (0.0.0.0), локальные и частные сети
     static bool IsSpecialIp(IPAddress ip)
@@ -960,7 +1022,7 @@ public class HealthCheckController : BaseController
         if (IPAddress.IsLoopback(ip) || ip.Equals(IPAddress.Any) || ip.Equals(IPAddress.IPv6Any))
             return true;
 
-        if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
+        if (ip.AddressFamily == AddressFamily.InterNetworkV6)
             return ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal || (ip.GetAddressBytes()[0] & 0xFE) == 0xFC;
 
         var b = ip.GetAddressBytes();
@@ -971,8 +1033,83 @@ public class HealthCheckController : BaseController
             || (b[0] == 100 && b[1] >= 64 && b[1] <= 127);
     }
 
-    /// <summary>Что видит сервер Lampac: DNS, затем TLS-соединение на 443 и любой HTTP-ответ (код не важен: важно, что соединение вообще есть).</summary>
-    static async Task<ProbeResult> ProbeOneAsync(string host, CancellationToken ct)
+    static void Classify(Exception ex, CancellationToken ct, FamilyProbe f)
+    {
+        if (ex is OperationCanceledException)
+        {
+            if (ct.IsCancellationRequested)
+            {
+                f.kind = "error";
+                f.detail = "отменено";
+            }
+            else
+            {
+                f.kind = "timeout";
+                f.detail = "нет соединения за 6-10 с";
+            }
+
+            return;
+        }
+
+        SocketException se = null;
+        bool tls = (ex as HttpRequestException)?.HttpRequestError == HttpRequestError.SecureConnectionError;
+        for (var e = ex; e != null; e = e.InnerException)
+        {
+            se ??= e as SocketException;
+            tls |= e is System.Security.Authentication.AuthenticationException;
+        }
+
+        if (se != null)
+        {
+            f.kind = se.SocketErrorCode switch
+            {
+                SocketError.ConnectionRefused => "refused",
+                SocketError.TimedOut => "timeout",
+                SocketError.HostUnreachable or SocketError.NetworkUnreachable => "unreachable",
+                SocketError.ConnectionReset => "reset",
+                SocketError.HostNotFound or SocketError.TryAgain => "dns",
+                _ => "error"
+            };
+            f.detail = f.kind == "timeout" ? "нет соединения за 6-10 с" : se.SocketErrorCode.ToString();
+        }
+        else if (tls)
+        {
+            // TCP до сервера дошёл, но TLS не установился: типичный признак фильтрации по SNI или подмены сертификата
+            f.kind = "tls";
+            f.detail = Clip(ex.InnerException?.Message ?? ex.Message, 120);
+        }
+        else
+        {
+            f.kind = "error";
+            f.detail = Clip(ex.InnerException?.Message ?? ex.Message, 120);
+        }
+    }
+
+    static async Task<FamilyProbe> ProbeFamilyAsync(string host, AddressFamily family, CancellationToken ct)
+    {
+        var f = new FamilyProbe();
+        var sw = Stopwatch.StartNew();
+        try
+        {
+            string target = family == AddressFamily.InterNetworkV6 && IPAddress.TryParse(host, out _) ? "[" + host + "]" : host;
+            using var req = new HttpRequestMessage(HttpMethod.Get, "https://" + target + "/");
+            using var resp = await (family == AddressFamily.InterNetworkV6 ? ProbeClient6 : ProbeClient4)
+                .SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+            f.reachable = true;
+            f.kind = "ok";
+            f.code = (int)resp.StatusCode;
+        }
+        catch (Exception ex)
+        {
+            Classify(ex, ct, f);
+        }
+
+        f.ms = sw.ElapsedMilliseconds;
+        return f;
+    }
+
+    /// <summary>Что видит сервер Lampac: DNS, затем TLS-соединение на 443 отдельно по IPv4 и IPv6 и любой HTTP-ответ (код не важен: важно, что соединение есть).</summary>
+    static async Task<ProbeResult> ProbeOneAsync(string host, bool serverIpv6, CancellationToken ct)
     {
         var r = new ProbeResult { host = host };
         r.ips = await ResolveOneAsync(host, ct).ConfigureAwait(false);
@@ -984,71 +1121,43 @@ public class HealthCheckController : BaseController
             return r;
         }
 
-        if (r.ips.Any(a => IPAddress.TryParse(a, out var ip) && IsSpecialIp(ip)))
+        var special = r.ips.FirstOrDefault(a => IPAddress.TryParse(a, out var ip) && IsSpecialIp(ip));
+        if (special != null)
         {
             r.kind = "dns";
-            r.detail = "резолвится в служебный адрес " + r.ips.First(a => IPAddress.TryParse(a, out var ip) && IsSpecialIp(ip)) + " (похоже на блокировку DNS)";
+            r.detail = "резолвится в служебный адрес " + special + " (похоже на блокировку DNS)";
             return r;
         }
 
-        var sw = Stopwatch.StartNew();
-        try
+        bool has4 = r.ips.Any(a => IPAddress.TryParse(a, out var ip) && ip.AddressFamily == AddressFamily.InterNetwork);
+        bool has6 = r.ips.Any(a => IPAddress.TryParse(a, out var ip) && ip.AddressFamily == AddressFamily.InterNetworkV6);
+
+        var t4 = has4 ? ProbeFamilyAsync(host, AddressFamily.InterNetwork, ct) : null;
+        var t6 = has6 && serverIpv6 ? ProbeFamilyAsync(host, AddressFamily.InterNetworkV6, ct) : null;
+
+        if (t4 != null)
+            r.v4 = await t4.ConfigureAwait(false);
+
+        if (t6 != null)
+            r.v6 = await t6.ConfigureAwait(false);
+        else if (has6)
+            r.v6 = new FamilyProbe { kind = "skip", detail = "у сервера нет IPv6" };
+
+        var done = new[] { r.v4, r.v6 }.Where(x => x != null && x.kind != "skip").ToList();
+        if (done.Count == 0)
         {
-            string target = IPAddress.TryParse(host, out var lit) && lit.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6 ? "[" + host + "]" : host;
-            using var req = new HttpRequestMessage(HttpMethod.Get, "https://" + target + "/");
-            using var resp = await ProbeClient.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
-            r.reachable = true;
-            r.kind = "ok";
-            r.code = (int)resp.StatusCode;
-        }
-        catch (OperationCanceledException)
-        {
-            if (ct.IsCancellationRequested)
-            {
-                r.kind = "error";
-                r.detail = "отменено";
-            }
-            else
-            {
-                r.kind = "timeout";
-                r.detail = "нет соединения за 6-10 с";
-            }
-        }
-        catch (HttpRequestException ex)
-        {
-            var se = ex.InnerException as System.Net.Sockets.SocketException ?? ex.InnerException?.InnerException as System.Net.Sockets.SocketException;
-            if (se != null)
-            {
-                r.kind = se.SocketErrorCode switch
-                {
-                    System.Net.Sockets.SocketError.ConnectionRefused => "refused",
-                    System.Net.Sockets.SocketError.TimedOut => "timeout",
-                    System.Net.Sockets.SocketError.HostUnreachable or System.Net.Sockets.SocketError.NetworkUnreachable => "unreachable",
-                    System.Net.Sockets.SocketError.ConnectionReset => "reset",
-                    System.Net.Sockets.SocketError.HostNotFound or System.Net.Sockets.SocketError.TryAgain => "dns",
-                    _ => "error"
-                };
-                r.detail = se.SocketErrorCode.ToString();
-            }
-            else if (ex.InnerException is System.Security.Authentication.AuthenticationException || ex.HttpRequestError == HttpRequestError.SecureConnectionError)
-            {
-                // TCP до сервера дошёл, но TLS не установился: типичный признак фильтрации по SNI
-                r.kind = "tls";
-                r.detail = Clip(ex.InnerException?.Message ?? ex.Message, 120);
-            }
-            else
-            {
-                r.kind = "error";
-                r.detail = Clip(ex.InnerException?.Message ?? ex.Message, 120);
-            }
-        }
-        catch (Exception ex)
-        {
-            r.kind = "error";
-            r.detail = Clip(ex.Message, 120);
+            r.kind = "unreachable";
+            r.detail = "у домена только IPv6-адреса, а у сервера нет IPv6";
+            return r;
         }
 
-        r.ms = sw.ElapsedMilliseconds;
+        var best = done.FirstOrDefault(x => x.reachable) ?? done[0];
+        r.reachable = done.Any(x => x.reachable);
+        r.partial = r.reachable && done.Any(x => !x.reachable);
+        r.kind = best.kind;
+        r.code = best.code;
+        r.ms = best.ms;
+        r.detail = best.detail;
         return r;
     }
 
@@ -1075,13 +1184,14 @@ public class HealthCheckController : BaseController
             .Take(60)
             .ToList();
 
+        bool serverIpv6 = ServerHasIpv6();
         var gate = new SemaphoreSlim(8, 8);
         var tasks = list.Select(async h =>
         {
             await gate.WaitAsync(HttpContext.RequestAborted).ConfigureAwait(false);
             try
             {
-                return await ProbeOneAsync(h, HttpContext.RequestAborted).ConfigureAwait(false);
+                return await ProbeOneAsync(h, serverIpv6, HttpContext.RequestAborted).ConfigureAwait(false);
             }
             finally
             {
@@ -1090,7 +1200,7 @@ public class HealthCheckController : BaseController
         }).ToList();
 
         var results = await Task.WhenAll(tasks).ConfigureAwait(false);
-        return Json(new { probe = results });
+        return Json(new { probe = results, serverIpv6 });
     }
     #endregion
 

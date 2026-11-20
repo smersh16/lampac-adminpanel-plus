@@ -2018,6 +2018,13 @@
       .hc-hrow.hc-head { display: none; }
       .hc-hrow { grid-template-columns: 1fr; gap: 2px; }
     }
+    .hc-prog { margin-bottom: var(--sp-3); padding: 10px var(--sp-4); border: 1px solid var(--border); border-radius: var(--r-xl); background: var(--surface); }
+    .hc-prog-top { display: flex; justify-content: space-between; gap: var(--sp-3); font-size: var(--text-sm); margin-bottom: 6px; }
+    .hc-prog-time { color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .hc-prog-bar { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+    .hc-prog-fill { height: 100%; width: 0; background: var(--accent); border-radius: 3px; transition: width .25s var(--ease, ease); }
+    .hc-prog-fill.indet { width: 35%; animation: hcslide 1.2s ease-in-out infinite; }
+    @keyframes hcslide { 0% { margin-left: -35%; } 100% { margin-left: 100%; } }
     .hc-step { display: inline-block; padding: 0 6px; margin-right: 4px; border-radius: 999px; font-size: var(--text-xs); background: var(--surface-2); }
     .hc-step.ok { background: var(--ok-dim, var(--accent-dim)); color: var(--ok); }
     .hc-step.fail { background: var(--err-dim, var(--surface-2)); color: var(--err); }
@@ -2322,6 +2329,10 @@
             <button type="button" class="btn btn-ghost btn-sm" id="hcStop" hidden></button>
             <div class="pv-seg" id="hcFilter" role="group"></div>
             <div class="pv-count" id="hcCount"></div>
+          </div>
+          <div class="hc-prog" id="hcProg" hidden>
+            <div class="hc-prog-top"><span id="hcProgText"></span><span class="hc-prog-time" id="hcProgTime"></span></div>
+            <div class="hc-prog-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="hcProgBar"><div class="hc-prog-fill" id="hcProgFill"></div></div>
           </div>
           <p class="pv-note" id="hcNote"></p>
           <div class="pv-table" id="hcMount"></div>
@@ -5973,7 +5984,7 @@
         $('#hcNote').textContent = tr(
           'Запускается только по кнопке: платные источники расходуют лимиты. Результат показывает, жив ли источник у сервера; воспроизведение на конкретном телевизоре он не гарантирует.',
           'Runs on demand only: paid sources spend their limits. The result shows whether the source works for the server; it does not guarantee playback on a particular TV.');
-        $('#hcRunAll').textContent = tr('Проверить все', 'Check all');
+        $('#hcRunAll').textContent = hc.running ? tr('Идёт проверка…', 'Checking…') : tr('Проверить все', 'Check all');
         $('#hcRunAll').disabled = hc.running;
         const stop = $('#hcStop');
         stop.textContent = tr('Остановить', 'Stop');
@@ -6006,7 +6017,7 @@
         hcRenderHosts();
 
         if (!keys.length) {
-          mount.appendChild(hcEl('div', 'pv-empty', hc.order.length ? tr('Нет провайдеров с таким состоянием.', 'No providers in this state.') : tr('Нажмите «Проверить все»: список провайдеров берётся у сервера для каждого тестового тайтла.', 'Press “Check all”: the provider list is taken from the server for each test title.')));
+          mount.appendChild(hcEl('div', 'pv-empty', hc.order.length ? tr('Нет провайдеров с таким состоянием.', 'No providers in this state.') : (hc.running ? tr('Идёт проверка: получаю список провайдеров у сервера…', 'Check in progress: getting the provider list from the server…') : tr('Нажмите «Проверить все»: список провайдеров берётся у сервера для каждого тестового тайтла.', 'Press “Check all”: the provider list is taken from the server for each test title.'))));
           return;
         }
 
@@ -6059,21 +6070,71 @@
         });
       }
 
+      /* ── Индикатор прогресса ── */
+      hc.prog = null;
+      hc.timer = null;
+
+      function hcFmtTime(ms) {
+        const t = Math.max(0, Math.round(ms / 1000));
+        return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0');
+      }
+
+      function hcRenderProgress() {
+        const box = $('#hcProg');
+        if (!box) return;
+        if (!hc.prog) { box.hidden = true; return; }
+        box.hidden = false;
+        const pr = hc.prog;
+        const known = pr.total > 0;
+        $('#hcProgText').textContent = pr.label + (known ? ': ' + pr.done + ' ' + tr('из', 'of') + ' ' + pr.total : '…');
+        $('#hcProgTime').textContent = tr('прошло ', 'elapsed ') + hcFmtTime(Date.now() - pr.t0);
+        const fill = $('#hcProgFill');
+        fill.classList.toggle('indet', !known);
+        fill.style.width = known ? Math.min(100, Math.round(pr.done * 100 / pr.total)) + '%' : '';
+        $('#hcProgBar').setAttribute('aria-valuenow', known ? String(Math.round(pr.done * 100 / pr.total)) : '');
+      }
+
+      // label: что делаем сейчас; done/total: сколько готово (total = 0, если счёт неизвестен). Секундомер идёт сам, пока этап не завершён.
+      function hcProgSet(label, done, total) {
+        if (!hc.prog) {
+          hc.prog = { t0: Date.now(), label: '', done: 0, total: 0 };
+          hc.timer = setInterval(hcRenderProgress, 1000);
+        }
+        hc.prog.label = label; hc.prog.done = done; hc.prog.total = total;
+        hcRenderProgress();
+      }
+
+      function hcProgEnd(msg) {
+        const took = hc.prog ? Date.now() - hc.prog.t0 : 0;
+        if (hc.timer) { clearInterval(hc.timer); hc.timer = null; }
+        hc.prog = null;
+        hcRenderProgress();
+        if (msg) showToast(msg + ' · ' + hcFmtTime(took), 'ok');
+      }
+
       async function hcCollect() {
         // для каждого тайтла берём у сервера список провайдеров (lite/events): адреса не угадываем
         const next = {};
-        for (const smp of hc.samples) {
+        const label = tr('Получаю список провайдеров у сервера', 'Getting the provider list from the server');
+        let done = 0;
+        hcProgSet(label, 0, hc.samples.length);
+        const lists = await Promise.all(hc.samples.map(async smp => {
           try {
             const j = await hcJson('/adminpanel/api/healthcheck/providers?sample=' + encodeURIComponent(smp.id));
-            (j.providers || []).forEach(p => {
-              const k = p.balanser || p.name;
-              if (!next[k]) next[k] = { name: p.name || k, targets: {}, results: {}, running: false };
-              next[k].targets[smp.id] = p.url;
-            });
+            return { smp, providers: j.providers || [] };
           } catch (e) {
             showToast(smp.title + ': ' + (e.message || e), 'err');
+            return { smp, providers: [] };
+          } finally {
+            done++;
+            hcProgSet(label, done, hc.samples.length);
           }
-        }
+        }));
+        lists.forEach(({ smp, providers }) => providers.forEach(p => {
+          const k = p.balanser || p.name;
+          if (!next[k]) next[k] = { name: p.name || k, targets: {}, results: {}, running: false };
+          next[k].targets[smp.id] = p.url;
+        }));
         hc.rows = next;
         hc.order = Object.keys(next).sort((a, b) => a.localeCompare(b));
       }
@@ -6093,6 +6154,11 @@
           });
           renderHealth();
 
+          const runLabel = tr('Проверка провайдеров', 'Checking providers');
+          let runDone = 0;
+          const runTotal = queue.length;
+          hcProgSet(runLabel, 0, runTotal);
+
           const worker = async () => {
             while (queue.length && !hc.stop) {
               const [k, sid] = queue.shift();
@@ -6106,14 +6172,18 @@
                 row.results[sid] = { status: 'fail', error: e.message || String(e), steps: [] };
               }
               if (!Object.keys(row.targets).some(t => !row.results[t])) row.running = false;
+              runDone++;
+              hcProgSet(runLabel, runDone, runTotal);
               renderHealth();
             }
           };
           await Promise.all([worker(), worker(), worker()]);
         } finally {
           keys.forEach(k => { if (hc.rows[k]) hc.rows[k].running = false; });
-          await hcProbeAll();
+          const stopped = hc.stop;
+          if (!stopped) await hcProbeAll();
           hc.running = false;
+          hcProgEnd(stopped ? tr('Проверка остановлена', 'Check stopped') : tr('Проверка завершена', 'Check finished'));
           renderHealth();
         }
       }
@@ -6121,9 +6191,14 @@
       $('#hcRunAll').addEventListener('click', async () => {
         if (hc.running) return;
         hc.running = true;
-        renderHealth();
+        hc.stop = false;
         hc.probe = {};
+        hc.rows = {};
+        hc.order = [];
+        hcProgSet(tr('Получаю список провайдеров у сервера', 'Getting the provider list from the server'), 0, hc.samples.length);
+        renderHealth();
         try { await hcCollect(); } finally { hc.running = false; }
+        if (!hc.order.length) { hcProgEnd(); renderHealth(); showToast(tr('Сервер не вернул ни одного провайдера', 'The server returned no providers'), 'err'); return; }
         await hcRun(hc.order.slice());
       });
       $('#hcStop').addEventListener('click', () => { hc.stop = true; });
@@ -6136,7 +6211,7 @@
       const HC_KIND = {
         ok: ['доступен', 'reachable'], dns: ['проблема DNS', 'DNS problem'], timeout: ['нет соединения (таймаут)', 'no connection (timeout)'],
         unreachable: ['сеть недоступна', 'unreachable'], refused: ['соединение отклонено', 'connection refused'],
-        reset: ['соединение сброшено', 'connection reset'], tls: ['TLS не установился (признак фильтрации)', 'TLS failed (filtering sign)'], error: ['ошибка', 'error']
+        skip: ['не проверялось', 'skipped'], reset: ['соединение сброшено', 'connection reset'], tls: ['TLS не установился (признак фильтрации)', 'TLS failed (filtering sign)'], error: ['ошибка', 'error']
       };
 
       function hcProviderCfg(balanser) {
@@ -6187,18 +6262,30 @@
           e.probe = hc.probe[e.host] || null;
           if (e.probe) (e.probe.ips || []).forEach(ip => e.ips.add(ip));
           e.net = !!(e.probe && !e.probe.reachable);       // сервер не смог связаться с доменом: кандидат для VPN
-          e.bad = e.net || e.reqFailed.size > 0;           // любой сбой, в том числе ответ с ошибкой от доступного сервера
+          e.partial = !!(e.probe && e.probe.partial);       // работает только одно из IPv4/IPv6
+          e.bad = e.net || e.partial || e.reqFailed.size > 0; // любой сбой, в том числе ответ с ошибкой от доступного сервера
         });
         return Array.from(map.values()).sort((a, b) => (b.net - a.net) || (b.bad - a.bad) || a.host.localeCompare(b.host));
       }
 
       function hcRoleName(r) { return { provider: tr('сайт/API провайдера', 'provider site/API'), manifest: tr('манифест потока', 'stream manifest'), segment: tr('сегменты видео', 'video segments') }[r] || r; }
 
+      function hcFamText(f) {
+        const k = HC_KIND[f.kind] || HC_KIND.error;
+        if (f.reachable) return tr(k[0], k[1]) + ' (HTTP ' + f.code + (f.ms ? ', ' + f.ms + ' ' + tr('мс', 'ms') : '') + ')';
+        return tr(k[0], k[1]) + (f.detail && f.kind !== 'timeout' ? ': ' + f.detail : '');
+      }
+
       function hcProbeText(p) {
         if (!p) return tr('сеть не проверялась', 'network not probed');
-        const k = HC_KIND[p.kind] || HC_KIND.error;
-        if (p.reachable) return tr(k[0], k[1]) + ' (HTTP ' + p.code + (p.ms ? ', ' + p.ms + ' ' + tr('мс', 'ms') : '') + ')';
-        return tr(k[0], k[1]) + (p.detail ? ': ' + p.detail : '');
+        if (!p.v4 && !p.v6) {
+          const k = HC_KIND[p.kind] || HC_KIND.error;
+          return tr(k[0], k[1]) + (p.detail ? ': ' + p.detail : '');
+        }
+        const parts = [];
+        if (p.v4) parts.push('IPv4: ' + hcFamText(p.v4));
+        if (p.v6) parts.push('IPv6: ' + hcFamText(p.v6));
+        return (p.partial ? tr('частично: ', 'partial: ') : '') + parts.join(' · ');
       }
 
       function hcFilterHosts(all) {
@@ -6216,6 +6303,7 @@
         $('#hcHostsNote').textContent = tr(
           'Домены потоков (манифест, сегменты) взяты из ссылок за /proxy/ Lampac: это реальные узлы CDN, к которым ходит сервер; при «direct» поток тянет сам плеер. Состояние сети проверяется отдельно: сервер Lampac открывает TLS-соединение на 443 к каждому домену. «Недоступны» — кандидаты для VPN (нет соединения, таймаут, сброс, сбой TLS или DNS отдаёт служебный адрес). «Любые сбои» добавляют домены, которые отвечают, но запрос к ним дал ошибку: это обычно не про VPN. HTTP 503 на поиске провайдера не означает недоступность домена: так Lampac отвечает и когда тайтла нет, и когда сайт не ответил. Если у провайдера включён useproxy, проверка с сервера для него не показательна. IP определены DNS сервера Lampac, резолвер роутера или VPN может отдать другие, поэтому в списки лучше добавлять домены.',
           'Stream domains (manifest, segments) come from Lampac /proxy/ links: these are the real CDN nodes the server talks to; for “direct” streams the player fetches them itself. Network state is probed separately: the Lampac server opens a TLS connection on 443 to each domain. “Unreachable” are VPN candidates (no connection, timeout, reset, TLS failure or DNS returns a special address). “Any failure” adds domains that answer but whose request errored: usually not a VPN matter. HTTP 503 on provider search does not mean the domain is down: Lampac answers it both when the title is missing and when the site did not respond. If a provider has useproxy set, a server-side probe is not representative. IPs come from the Lampac server DNS; a router or VPN resolver may return others, so prefer adding domains.');
+        if (hc.serverIpv6 === false) $('#hcHostsNote').textContent += tr(' У сервера Lampac нет IPv6, поэтому IPv6-адреса доменов не проверялись.', ' The Lampac server has no IPv6, so IPv6 addresses were not probed.');
         $('#hcCopyDomains').textContent = tr('Копировать домены', 'Copy domains');
         $('#hcCopyReport').textContent = tr('Копировать отчёт', 'Copy report');
         $('#hcDownload').textContent = tr('Скачать JSON', 'Download JSON');
@@ -6292,7 +6380,8 @@
         lines.push('== Domains: unreachable first. net = TLS probe from the Lampac server, req = failures of real requests ==');
         all.forEach(e => {
           const p = e.probe;
-          const net = !p ? 'not probed' : (p.reachable ? 'ok HTTP ' + p.code + ' ' + p.ms + 'ms' : 'UNREACHABLE ' + p.kind + (p.detail ? ' (' + p.detail + ')' : ''));
+          const fam = f => !f ? '-' : (f.kind === 'skip' ? 'skipped(' + f.detail + ')' : (f.reachable ? 'ok HTTP ' + f.code + ' ' + f.ms + 'ms' : f.kind + (f.detail ? ' (' + f.detail + ')' : '')));
+          const net = !p ? 'not probed' : ((p.reachable ? 'ok' : 'UNREACHABLE') + (p.partial ? ' PARTIAL' : '') + ((p.v4 || p.v6) ? ' [v4 ' + fam(p.v4) + '; v6 ' + fam(p.v6) + ']' : ' ' + p.kind + (p.detail ? ' (' + p.detail + ')' : '')));
           const req = e.reqFailed.size ? 'FAIL ' + Array.from(e.reqFailed).join(',') + (e.errors.size ? ' (' + Array.from(e.errors).join('; ') + ')' : '') : (e.tested ? 'ok' : 'not tested');
           lines.push(e.host + ' | ' + Array.from(e.roles).join(',') + ' | providers: ' + Array.from(e.providers).join(',') + (e.provProxy ? ' (useproxy)' : '') + ' | net: ' + net + ' | req: ' + req + ' | ips: ' + (Array.from(e.ips).join(',') || '-'));
         });
@@ -6336,16 +6425,32 @@
 
       async function hcProbeAll() {
         const hosts = hcAggregateHosts().map(e => e.host).filter(h => !(h in hc.probe));
-        for (let i = 0; i < hosts.length; i += 40) {
-          const chunk = hosts.slice(i, i + 40);
-          try {
-            const j = await hcJson('/adminpanel/api/healthcheck/probe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hosts: chunk }) });
-            (j.probe || []).forEach(p => { hc.probe[p.host] = p; });
-          } catch (e) {
-            showToast(tr('Проверка сети по доменам не удалась: ', 'Domain network probe failed: ') + (e.message || e), 'err');
-            return;
+        if (!hosts.length) return;
+        // небольшие пачки в три потока: прогресс идёт плавно, таблица дополняется по мере ответов
+        const chunks = [];
+        for (let i = 0; i < hosts.length; i += 8) chunks.push(hosts.slice(i, i + 8));
+        const label = tr('Проверка доменов (DNS, IPv4, IPv6)', 'Probing domains (DNS, IPv4, IPv6)');
+        let done = 0;
+        let failed = false;
+        hcProgSet(label, 0, hosts.length);
+        const worker = async () => {
+          while (chunks.length && !hc.stop && !failed) {
+            const chunk = chunks.shift();
+            try {
+              const j = await hcJson('/adminpanel/api/healthcheck/probe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hosts: chunk }) });
+              (j.probe || []).forEach(p => { hc.probe[p.host] = p; });
+              if (typeof j.serverIpv6 === 'boolean') hc.serverIpv6 = j.serverIpv6;
+            } catch (e) {
+              failed = true;
+              showToast(tr('Проверка сети по доменам не удалась: ', 'Domain network probe failed: ') + (e.message || e), 'err');
+              return;
+            }
+            done += chunk.length;
+            hcProgSet(label, done, hosts.length);
+            hcRenderHosts();
           }
-        }
+        };
+        await Promise.all([worker(), worker(), worker()]);
       }
 
       async function hcOpen() {
