@@ -540,6 +540,14 @@ public class HealthCheckController : BaseController
         if (!local)
             reqUrl = abs;
 
+        // прямой видеофайл (mp4 и т.п.): плеер читает его через Range, а не качает целиком;
+        // читать 256 КБ обычным GET нельзя: медленный сервер даст ложный «нет ответа за 25 с»
+        if (IsPlainFileUrl(abs))
+        {
+            res.steps.Add(new Step { name = "manifest", ok = true, detail = "файл (проверка первых 2 КБ через Range)" });
+            return await CheckRangeAsync(res, abs, headers, ct).ConfigureAwait(false);
+        }
+
         var sw = Stopwatch.StartNew();
         var m = await GetAsync(reqUrl, 25, local, MaxBodyBytes, ct, headers: local ? null : headers).ConfigureAwait(false);
         sw.Stop();
@@ -626,6 +634,22 @@ public class HealthCheckController : BaseController
 
         res.steps.Add(new Step { name = "manifest", ok = false, ms = sw.ElapsedMilliseconds, detail = "пустой ответ" });
         return fail("manifest");
+    }
+
+    static bool IsPlainFileUrl(string abs)
+    {
+        if (!Uri.TryCreate(abs, UriKind.Absolute, out var u))
+            return false;
+
+        string path = u.AbsolutePath;
+        string[] exts = { ".mp4", ".m4v", ".mkv", ".webm", ".mov", ".avi" };
+        foreach (var e in exts)
+        {
+            if (path.EndsWith(e, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
     }
 
     static async Task<CheckResult> CheckRangeAsync(CheckResult res, string segAbs, IReadOnlyDictionary<string, string> headers, CancellationToken ct)
