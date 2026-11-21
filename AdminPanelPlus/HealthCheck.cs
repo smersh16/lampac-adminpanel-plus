@@ -858,6 +858,10 @@ public class HealthCheckController : BaseController
                 }
             }
 
+            // плеер всегда шлёт User-Agent; часть CDN без него отвечает ошибкой (HTTP 500)
+            if (!withPasswd && (headers == null || !headers.Keys.Any(k => string.Equals(k, "User-Agent", StringComparison.OrdinalIgnoreCase))))
+                req.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36");
+
             if (range != null)
                 req.Headers.TryAddWithoutValidation("Range", range);
 
