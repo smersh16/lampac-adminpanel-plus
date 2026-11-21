@@ -548,7 +548,10 @@ public class HealthCheckController : BaseController
 
         if (!m.ok)
         {
-            res.steps.Add(new Step { name = "manifest", ok = false, ms = sw.ElapsedMilliseconds, detail = m.error });
+            string mdetail = m.error;
+            if (!local && Uri.TryCreate(reqUrl, UriKind.Absolute, out var mu))
+                mdetail += "; путь: " + Clip(mu.AbsolutePath, 90); // без query: там обычно токены
+            res.steps.Add(new Step { name = "manifest", ok = false, ms = sw.ElapsedMilliseconds, detail = mdetail });
             return fail("manifest");
         }
 
