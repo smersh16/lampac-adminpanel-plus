@@ -1981,6 +1981,8 @@
     .pv-dot.timeout { background: var(--warn); }
     .pv-dot.run { background: var(--accent); animation: pvpulse 1s infinite; }
     @keyframes pvpulse { 50% { opacity: .25; } }
+    .pv-unl { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-xs); color: var(--text-muted); cursor: pointer; white-space: nowrap; }
+    .pv-off { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 999px; font-size: var(--text-xs); background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border); cursor: help; }
     .pv-note { font-size: var(--text-xs); color: var(--text-muted); margin: 0 0 var(--sp-3); line-height: 1.5; }
     .pv-sw { position: relative; display: inline-block; width: 40px; height: 22px; }
     .pv-sw input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; z-index: 1; }
@@ -2255,6 +2257,7 @@
             <div class="pv-seg" id="pvState" role="group"></div>
             <select class="pv-select" id="pvGroup"></select>
             <select class="pv-select" id="pvRegion"></select>
+            <label class="pv-unl" id="pvUnlWrap" hidden><input type="checkbox" id="pvUnl"> <span id="pvUnlText"></span></label>
             <button type="button" class="btn btn-ghost btn-sm" id="pvCheckAll"></button>
             <div class="pv-count" id="pvCount"></div>
           </div>
@@ -4113,6 +4116,7 @@
           await loadUsersJson();
           await loadHints();
           await loadModCatalog();
+          await loadLoadedMods();
           renderSections();
           renderSimpleSections();
           provChanges = {};
@@ -4491,6 +4495,16 @@
           const r = await api('/adminpanel/api/modules-catalog');
           modCatalog = r.ok ? await r.json() : {};
         } catch (e) { modCatalog = {}; }
+      }
+
+      // Реально загруженные модули с сервера: [{name, group}]. null — сервер старый или запрос не удался (тогда работает статический каталог).
+      let loadedMods = null;
+      async function loadLoadedMods() {
+        try {
+          const r = await api('/adminpanel/api/loaded-modules');
+          const j = r.ok ? await r.json() : null;
+          loadedMods = Array.isArray(j) && j.length ? j : null;
+        } catch (e) { loadedMods = null; }
       }
 
       const mdArr = v => Array.isArray(v) ? v.map(String) : [];
@@ -4922,7 +4936,23 @@
       let pvFilter = { q: '', state: 'all', group: '', region: '' };
       const pvProbe = {};        // проверка доступности из браузера: { ключ: { state, ms, host } }
 
-      const pvRegionOf = key => (modCatalog.providerRegion || {})[String(key).toLowerCase()] || '';
+      let pvShowUnloaded = false;
+      function pvLoadedMap() {
+        const m = {};
+        (loadedMods || []).forEach(x => { m[String(x.name).toLowerCase()] = x; });
+        return m;
+      }
+      // Регион: по папке, из которой модуль реально загружен (OnlineRUS → RUS), иначе по справочнику modules.json
+      const pvRegionOf = key => {
+        const lm = loadedMods && pvLoadedMap()[String(key).toLowerCase()];
+        const g = lm && lm.group;
+        if (g && /^Online/i.test(g)) {
+          const code = g.slice(6);
+          const hit = Object.keys(modCatalog.regions || {}).find(c => c.toLowerCase() === code.toLowerCase());
+          if (hit) return hit;
+        }
+        return (modCatalog.providerRegion || {})[String(key).toLowerCase()] || '';
+      };
 
       // имя поля включения зависит от CoreInit.defaultOn: "enable" (по умолчанию) или "enabled"
       function pvEnableField() { return currentObj && currentObj.defaultOn === 'enabled' ? 'enabled' : 'enable'; }
@@ -4935,22 +4965,44 @@
 
       function pvList() {
         const out = [];
+        const lmap = loadedMods ? pvLoadedMap() : null;
+        const isLoaded = k => !lmap || !!lmap[String(k).toLowerCase()];
         catalogGroupsMeta.filter(g => g.id.indexOf('src-') === 0).forEach(g => {
           (g.keys || []).forEach(k => {
-            if (isPlainObject(currentObj[k])) out.push({ key: k, group: g.id, groupTitle: (g.title || g.id).replace(/^Источники\s*·\s*/, '') });
+            if (!isPlainObject(currentObj[k])) return;
+            const loaded = isLoaded(k);
+            if (!loaded && !pvShowUnloaded) return;
+            out.push({ key: k, group: g.id, groupTitle: (g.title || g.id).replace(/^Источники\s*·\s*/, ''), loaded: loaded });
           });
         });
-        // провайдеры, которых нет в каталоге групп (новые модули), но есть в справочнике регионов
-        const have = new Set(out.map(p => p.key));
-        Object.keys(currentObj).forEach(k => {
-          if (!have.has(k) && isPlainObject(currentObj[k]) && pvRegionOf(k) && !ConfigSectionGroups_known(k))
-            out.push({ key: k, group: 'src-new', groupTitle: tr('Новые модули', 'New modules') });
-        });
+        // модули, которые реально загружены, но которых нет в каталоге групп (новые провайдеры)
+        const have = new Set(out.map(p => p.key.toLowerCase()));
+        const known = new Set();
+        catalogGroupsMeta.forEach(g => (g.keys || []).forEach(k => known.add(String(k).toLowerCase())));
+        if (lmap) {
+          Object.keys(currentObj).forEach(k => {
+            const lm = lmap[k.toLowerCase()];
+            if (!lm || have.has(k.toLowerCase()) || known.has(k.toLowerCase()) || !isPlainObject(currentObj[k])) return;
+            if (!/^(Online|Adult|SISI)/i.test(lm.group || '') && !pvRegionOf(k)) return;
+            out.push({ key: k, group: 'src-new', groupTitle: tr('Новые модули', 'New modules') + (lm.group ? ' · ' + lm.group : ''), loaded: true });
+          });
+        } else {
+          Object.keys(currentObj).forEach(k => {
+            if (!have.has(k.toLowerCase()) && isPlainObject(currentObj[k]) && pvRegionOf(k) && !known.has(k.toLowerCase()))
+              out.push({ key: k, group: 'src-new', groupTitle: tr('Новые модули', 'New modules'), loaded: true });
+          });
+        }
         return out.sort((a, b) => a.key.toLowerCase().localeCompare(b.key.toLowerCase()));
       }
 
-      function ConfigSectionGroups_known(k) {
-        return catalogGroupsMeta.some(g => (g.keys || []).indexOf(k) >= 0);
+      // сколько провайдеров из каталога сейчас не загружено (модуль выключен, в SkipModules или не скомпилировался)
+      function pvUnloadedCount() {
+        if (!loadedMods) return 0;
+        const lmap = pvLoadedMap();
+        let n = 0;
+        catalogGroupsMeta.filter(g => g.id.indexOf('src-') === 0).forEach(g =>
+          (g.keys || []).forEach(k => { if (isPlainObject(currentObj[k]) && !lmap[String(k).toLowerCase()]) n++; }));
+        return n;
       }
 
       function pvValue(key, field) {
@@ -5136,6 +5188,10 @@
         rsel.appendChild(o1);
         rsel.value = f.region;
         rsel.hidden = !modCatalog.regions;
+        const unl = pvUnloadedCount();
+        $('#pvUnlWrap').hidden = unl === 0;
+        $('#pvUnl').checked = pvShowUnloaded;
+        $('#pvUnlText').textContent = tr('Показать незагруженные (' + unl + ')', 'Show not loaded (' + unl + ')');
         const cb0 = $('#pvCheckAll');
         if (!cb0.disabled) cb0.textContent = tr('Проверить доступность', 'Check availability');
         $('#pvProbeNote').textContent = tr(
@@ -5194,6 +5250,12 @@
             const tag = mdEl('span', 'pv-reg' + (rg === 'Paid' ? ' paid' : ''), rg);
             tag.title = mdLang((modCatalog.regions || {})[rg]);
             sm.appendChild(tag);
+          }
+          if (p.loaded === false) {
+            const off = mdEl('span', 'pv-off', tr('не загружен', 'not loaded'));
+            off.title = tr('Модуль не загружен сервером: он в SkipModules, выключен в manifest.json или не скомпилировался. Настройки сохранятся, но будут действовать после его загрузки.',
+              'The module is not loaded by the server: it is in SkipModules, disabled in manifest.json or failed to compile. Settings are kept and apply once it is loaded.');
+            sm.appendChild(off);
           }
           nm.appendChild(sm);
           row.appendChild(nm);
@@ -5261,6 +5323,7 @@
       $('#pvGroup').addEventListener('change', e => { pvFilter.group = e.target.value; renderProviders(); });
       $('#pvRegion').addEventListener('change', e => { pvFilter.region = e.target.value; renderProviders(); });
       $('#pvCheckAll').addEventListener('click', pvCheckAll);
+      $('#pvUnl').addEventListener('change', e => { pvShowUnloaded = e.target.checked; renderProviders(); });
 
       /* ═══ Вкладка «Транскодинг»: GStreamer (секция gst) и Transcoding (секция transcoding) ═══
          Параметры и значения по умолчанию взяты из Modules/GStreamer/Models/ModuleConf.cs, Modules/GStreamer/README.md,
@@ -5785,6 +5848,7 @@
           await loadUsersJson();
           await loadHints();
           await loadModCatalog();
+          await loadLoadedMods();
           renderSections();
           renderSimpleSections();
           provChanges = {};

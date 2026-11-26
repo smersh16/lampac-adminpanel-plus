@@ -102,6 +102,43 @@ public class AdminPanelPlusController : BaseController
         return Content(System.IO.File.ReadAllText(path, Encoding.UTF8), "application/json; charset=utf-8");
     }
 
+    // Реально загруженные модули (а не каталог из исходников): вкладка «Провайдеры» строит список по ним.
+    // group — имя папки-родителя (OnlineRUS, OnlineENG, ...); у dll-модулей path пустой.
+    [HttpGet]
+    [Route("/adminpanel/api/loaded-modules")]
+    public ActionResult LoadedModules()
+    {
+        var result = new JArray();
+
+        try
+        {
+            foreach (var m in CoreInit.modules.ToArray())
+            {
+                if (m == null || !m.enable || m.assembly == null || string.IsNullOrEmpty(m.name))
+                    continue;
+
+                string group = null;
+                if (!string.IsNullOrEmpty(m.path))
+                {
+                    var parent = Path.GetDirectoryName(m.path.TrimEnd('/', '\\'));
+                    if (!string.IsNullOrEmpty(parent))
+                        group = Path.GetFileName(parent);
+                }
+
+                result.Add(new JObject
+                {
+                    ["name"] = m.name,
+                    ["group"] = group
+                });
+            }
+        }
+        catch (InvalidOperationException)
+        {
+        }
+
+        return Content(result.ToString(Formatting.None), "application/json; charset=utf-8");
+    }
+
     static JObject LoadCurrentRoot()
     {
         try
