@@ -1,0 +1,52 @@
+name: build
+
+# Проверка перед выкладкой: синтаксис скрипта панели и сборка C# против актуального дерева lampac-nextgen.
+# Ошибка компиляции модуля не даёт Lampac стартовать, поэтому на main ветка stable переводится
+# только на проверенный коммит. Чтобы сервер брал только проверенный код, поставьте в repository.yaml branch: stable.
+on:
+  push:
+    branches: [main, live-providers]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: module
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Синтаксис скрипта index.html
+        working-directory: module
+        run: |
+          node -e "const fs=require('fs');const h=fs.readFileSync('AdminPanelPlus/index.html','utf8');const m=[...h.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(x=>x[1]).sort((a,b)=>b.length-a.length)[0];fs.writeFileSync('/tmp/panel.js',m)"
+          node --check /tmp/panel.js
+          node -e "for (const f of ['hints.json','modules.json','manifest.json']) JSON.parse(require('fs').readFileSync('AdminPanelPlus/'+f,'utf8'))"
+
+      - uses: actions/checkout@v4
+        with:
+          repository: lampac-nextgen/lampac
+          path: lampac
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Сборка модуля против дерева lampac
+        run: |
+          mkdir -p lampac/Modules
+          cp -r module/AdminPanelPlus lampac/Modules/AdminPanelPlus
+          dotnet build lampac/Modules/AdminPanelPlus/AdminPanelPlus.csproj -c Release
+
+      - name: Перевести stable на проверенный коммит
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        working-directory: module
+        run: git push origin "${GITHUB_SHA}:refs/heads/stable" --force
