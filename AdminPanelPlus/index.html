@@ -4502,7 +4502,7 @@
 
       // Реально загруженные модули с сервера: [{name, group}]. null — сервер старый или запрос не удался (тогда работает статический каталог).
       // Версия панели (index.html). Должна совпадать с version.json на сервере.
-      const PANEL_VERSION = '1.1.0';
+      const PANEL_VERSION = '1.1.1';
       async function showVersion() {
         const el = $('#panelVer');
         if (!el) return;
@@ -4992,6 +4992,11 @@
         return n;
       }
 
+      // Секция онлайн-источника (BaseSettings): есть и host, и displayindex. Так видны провайдеры из сторонних модулей (repository.yaml).
+      function pvLooksLikeSource(sec) {
+        return isPlainObject(sec) && 'host' in sec && 'displayindex' in sec;
+      }
+
       function pvList() {
         const out = [];
         const lmap = loadedMods ? pvLoadedMap() : null;
@@ -5012,12 +5017,13 @@
           Object.keys(currentObj).forEach(k => {
             const lm = lmap[k.toLowerCase()];
             if (!lm || have.has(k.toLowerCase()) || known.has(k.toLowerCase()) || !isPlainObject(currentObj[k])) return;
-            if (!/^(Online|Adult|SISI)/i.test(lm.group || '') && !pvRegionOf(k)) return;
-            out.push({ key: k, group: 'src-new', groupTitle: tr('Новые модули', 'New modules') + (lm.group ? ' · ' + lm.group : ''), loaded: true });
+            if (!/^(Online|Adult|SISI)/i.test(lm.group || '') && !pvRegionOf(k) && !pvLooksLikeSource(currentObj[k])) return;
+            const own = /^(Online|Adult|SISI)/i.test(lm.group || '');
+            out.push({ key: k, group: 'src-new', groupTitle: own ? tr('Новые модули', 'New modules') + ' · ' + lm.group : tr('Сторонние модули', 'Third-party modules'), loaded: true });
           });
         } else {
           Object.keys(currentObj).forEach(k => {
-            if (!have.has(k.toLowerCase()) && isPlainObject(currentObj[k]) && pvRegionOf(k) && !known.has(k.toLowerCase()))
+            if (!have.has(k.toLowerCase()) && isPlainObject(currentObj[k]) && !known.has(k.toLowerCase()) && (pvRegionOf(k) || pvLooksLikeSource(currentObj[k])))
               out.push({ key: k, group: 'src-new', groupTitle: tr('Новые модули', 'New modules'), loaded: true });
           });
         }
