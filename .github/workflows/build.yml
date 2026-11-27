@@ -5,7 +5,7 @@ name: build
 # только на проверенный коммит. Чтобы сервер брал только проверенный код, поставьте в repository.yaml branch: stable.
 on:
   push:
-    branches: [main, live-providers]
+    branches: ['**']
   pull_request:
   workflow_dispatch:
 
