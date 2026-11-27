@@ -29,7 +29,7 @@ jobs:
         run: |
           node -e "const fs=require('fs');const h=fs.readFileSync('AdminPanelPlus/index.html','utf8');const m=[...h.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(x=>x[1]).sort((a,b)=>b.length-a.length)[0];fs.writeFileSync('/tmp/panel.js',m)"
           node --check /tmp/panel.js
-          node -e "for (const f of ['hints.json','modules.json','manifest.json']) JSON.parse(require('fs').readFileSync('AdminPanelPlus/'+f,'utf8'))"
+          node -e "for (const f of ['hints.json','modules.json','manifest.json','version.json']) JSON.parse(require('fs').readFileSync('AdminPanelPlus/'+f,'utf8'))"
 
       - uses: actions/checkout@v4
         with:
