@@ -10,9 +10,11 @@ public class ModInit : IModuleLoaded
     public void Loaded(InitspaceModel baseconf)
     {
         modpath = baseconf.path;
+        SyncBackup.Start();
     }
 
     public void Dispose()
     {
+        SyncBackup.Stop();
     }
 }

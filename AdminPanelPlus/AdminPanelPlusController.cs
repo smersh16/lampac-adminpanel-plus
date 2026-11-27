@@ -15,7 +15,7 @@ using System.Threading.Tasks;
 namespace AdminPanelPlus;
 
 [Authorization(redirectUri: "/adminpanel/auth")]
-public class AdminPanelPlusController : BaseController
+public partial class AdminPanelPlusController : BaseController
 {
     const string InitFile = "init.conf";
     const string CurrentFile = "current.conf";
@@ -25,7 +25,7 @@ public class AdminPanelPlusController : BaseController
     // Не путать с database/backup/init/ — там ядро хранит слитый current-конфиг, по одному файлу в час.
     const string BackupDir = "database/backup/adminpanel";
     const int BackupKeep = 30;
-    static readonly Regex BackupName = new(@"^(init|users)-\d{8}-\d{6}-\d{3}\.(conf|json)$", RegexOptions.Compiled);
+    static readonly Regex BackupName = new(@"^(init|users|repository)-\d{8}-\d{6}-\d{3}\.(conf|json|yaml)$", RegexOptions.Compiled);
 
     static readonly JsonSerializerSettings CamelSettings = new()
     {
@@ -358,7 +358,7 @@ public class AdminPanelPlusController : BaseController
                 list.Add(new JObject
                 {
                     ["name"] = fi.Name,
-                    ["file"] = fi.Name.StartsWith("init-", StringComparison.Ordinal) ? InitFile : UsersFile,
+                    ["file"] = fi.Name.StartsWith("init-", StringComparison.Ordinal) ? InitFile : (fi.Name.StartsWith("repository-", StringComparison.Ordinal) ? "repository.yaml" : UsersFile),
                     ["size"] = fi.Length,
                     ["utc"] = fi.LastWriteTimeUtc.ToString("o")
                 });
@@ -392,6 +392,19 @@ public class AdminPanelPlusController : BaseController
         var path = Path.Combine(BackupDir, name);
         if (!System.IO.File.Exists(path))
             return AdminJsonError(404, "backup not found");
+
+        if (name.StartsWith("repository-", StringComparison.Ordinal))
+        {
+            try
+            {
+                var yaml = await System.IO.File.ReadAllTextAsync(path, Encoding.UTF8).ConfigureAwait(false);
+                return AdminJsonOk(await WriteAtomicAsync(RepoFile, yaml).ConfigureAwait(false));
+            }
+            catch (IOException ex)
+            {
+                return AdminJsonError(500, "failed to restore backup", ex.Message);
+            }
+        }
 
         var isInit = name.StartsWith("init-", StringComparison.Ordinal);
 

@@ -2133,6 +2133,11 @@
               stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Редактор
           </button>
+          <button type="button" class="tab" data-panel="backup" role="tab">
+            <svg style="width:12px;height:12px;margin-right:4px;vertical-align:-1px" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+            Копии
+          </button>
           <button type="button" class="tab" data-panel="users" role="tab">
             <svg style="width:12px;height:12px;margin-right:4px;vertical-align:-1px" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -2186,6 +2191,7 @@
         <button type="button" class="tab" data-panel="modules">Модули</button>
         <button type="button" class="tab" data-panel="transcode">Транскодинг</button>
         <button type="button" class="tab" data-panel="simple">Редактор</button>
+        <button type="button" class="tab" data-panel="backup">Копии</button>
         <button type="button" class="tab" data-panel="users">Пользователи</button>
         <button type="button" class="tab" data-panel="advanced">Для опытных</button>
       </div>
@@ -2353,6 +2359,41 @@
               <div class="hc-set-body"><textarea class="hc-rep" id="hcRep" readonly spellcheck="false"></textarea></div>
             </details>
           </div>
+        </div>
+
+        <div class="panel" id="panel-backup" data-panel="backup">
+          <div class="panel-header">
+            <div class="panel-header-info">
+              <h2 id="bkTitle"></h2>
+              <p id="bkIntro"></p>
+            </div>
+          </div>
+          <details class="hc-set" open>
+            <summary id="bkSyncSum"></summary>
+            <div class="hc-set-body">
+              <p class="pv-note" id="bkSyncNote"></p>
+              <div class="hc-bar">
+                <button type="button" class="btn btn-primary btn-sm" id="bkCreate"></button>
+                <label style="font-size:var(--text-sm);display:flex;gap:6px;align-items:center">
+                  <input type="checkbox" id="bkAuto"> <span id="bkAutoLbl"></span>
+                </label>
+              </div>
+              <div class="pv-table" id="bkList"></div>
+              <p class="pv-note" id="bkRestoreHint" style="margin-top:var(--sp-3)"></p>
+              <textarea class="hc-rep" id="bkCmd" readonly spellcheck="false" style="min-height:90px" hidden></textarea>
+            </div>
+          </details>
+          <details class="hc-set" open>
+            <summary id="rpSum"></summary>
+            <div class="hc-set-body">
+              <p class="pv-note" id="rpNote"></p>
+              <textarea class="hc-rep" id="rpText" spellcheck="false" style="min-height:260px"></textarea>
+              <div class="hc-bar" style="margin-top:var(--sp-3)">
+                <button type="button" class="btn btn-primary btn-sm" id="rpSave"></button>
+                <button type="button" class="btn btn-ghost btn-sm" id="rpReload"></button>
+              </div>
+            </div>
+          </details>
         </div>
 
         <!-- PANEL: Modules -->
@@ -2705,7 +2746,8 @@
           ss.hidden = id !== 'simple';
         }
         const lay = $('.layout');
-        if (lay) lay.classList.toggle('no-side', id === 'overview' || id === 'users' || id === 'providers' || id === 'health' || id === 'modules' || id === 'transcode');
+        if (lay) lay.classList.toggle('no-side', id === 'overview' || id === 'users' || id === 'providers' || id === 'health' || id === 'modules' || id === 'transcode' || id === 'backup');
+        if (id === 'backup') loadBackupPanel();
         updateSaveBtn();
       }
 
@@ -4344,6 +4386,112 @@
 
       function fmtSize(n) { return n < 1024 ? n + ' B' : (n / 1024).toFixed(1) + ' KB'; }
 
+      /* ── Копии: Sync/TimeCode и repository.yaml ── */
+      let rpMask = '***KEEP***';
+
+      function bkFmtDate(iso) {
+        try { return new Date(iso).toLocaleString('ru-RU'); } catch (e) { return iso; }
+      }
+
+      function bkTexts() {
+        $('#bkTitle').textContent = tr('Копии и repository.yaml', 'Backups and repository.yaml');
+        $('#bkIntro').textContent = tr('Резервные копии истории просмотров и позиций (Sync, TimeCode) и редактор списка внешних модулей.', 'Backups of watch history and positions (Sync, TimeCode) and the external modules list editor.');
+        $('#bkSyncSum').textContent = tr('История просмотров (Sync) и позиции (TimeCode)', 'Watch history (Sync) and positions (TimeCode)');
+        $('#bkSyncNote').textContent = tr('Копия делается безопасно при работающем сервере (SQLite VACUUM INTO). Автокопия — раз в сутки, хранится 5 последних; ручные — 10 последних.', 'Copies are safe while the server runs (SQLite VACUUM INTO). Auto copy: once a day, last 5 kept; manual: last 10.');
+        $('#bkCreate').textContent = tr('Сделать копию сейчас', 'Back up now');
+        $('#bkAutoLbl').textContent = tr('Автокопия раз в сутки (5 копий)', 'Daily auto backup (5 copies)');
+        $('#rpSum').textContent = 'repository.yaml';
+        $('#rpNote').textContent = tr('Список внешних репозиториев модулей. Читается при запуске контейнера: после сохранения нужен перезапуск. Значения token/auth_header скрыты как ' + rpMask + ' — оставьте их как есть, чтобы сохранить текущие. Перед записью делается копия (кнопка «Бэкапы» вверху).', 'External module repositories. Read at container start: restart required after saving. token/auth_header values are hidden as ' + rpMask + ' — keep them to preserve the current ones. A copy is made before saving (Backups button above).');
+        $('#rpSave').textContent = tr('Сохранить repository.yaml', 'Save repository.yaml');
+        $('#rpReload').textContent = tr('Перечитать', 'Reload');
+      }
+
+      async function loadBackupPanel() {
+        bkTexts();
+        try {
+          const r = await api('/adminpanel/api/sync-backup');
+          const d = await r.json();
+          $('#bkAuto').checked = !!d.auto;
+          const mount = $('#bkList');
+          mount.innerHTML = '';
+          if (!d.files.length) {
+            mount.innerHTML = '<p class="pv-note">' + esc(tr('Копий пока нет.', 'No backups yet.')) + '</p>';
+          }
+          d.files.forEach(f => {
+            const row = document.createElement('div');
+            row.className = 'hc-bar';
+            row.innerHTML = '<code>' + esc(f.name) + '</code><span class="pv-note" style="margin:0">' + esc(fmtSize(f.size)) + ' · ' + esc(bkFmtDate(f.utc)) + '</span>'
+              + '<a class="btn btn-ghost btn-sm" href="/adminpanel/api/sync-backup/download?name=' + encodeURIComponent(f.name) + '">' + esc(tr('Скачать', 'Download')) + '</a>'
+              + '<button type="button" class="btn btn-ghost btn-sm" data-act="cmd">' + esc(tr('Команда восстановления', 'Restore command')) + '</button>'
+              + '<button type="button" class="btn btn-ghost btn-sm" data-act="del">' + esc(tr('Удалить', 'Delete')) + '</button>';
+            row.querySelector('[data-act=cmd]').addEventListener('click', () => bkShowCmd(f.name));
+            row.querySelector('[data-act=del]').addEventListener('click', async () => {
+              if (!(await showConfirm(tr('Удалить копию?', 'Delete backup?'), f.name))) return;
+              const res = await api('/adminpanel/api/sync-backup/delete', { method: 'POST', body: JSON.stringify({ name: f.name }) });
+              showToast(res.ok ? tr('Копия удалена', 'Backup deleted') : tr('Не удалось удалить', 'Delete failed'), res.ok ? 'ok' : 'err');
+              loadBackupPanel();
+            });
+            mount.appendChild(row);
+          });
+        } catch (e) {
+          showToast(tr('Не удалось загрузить список копий', 'Failed to load backups'), 'err');
+        }
+        loadRepository();
+      }
+
+      function bkShowCmd(name) {
+        const db = name.split('-')[0];
+        const cmd = [
+          '# Восстановление ' + db + ' из ' + name + ' (путь стека подправьте под себя)',
+          'cd /data/compose/14/lampac-docker',
+          'docker stop lampac',
+          'cp database/' + db + '.sql database/' + db + '.sql.before-restore',
+          'rm -f database/' + db + '.sql-wal database/' + db + '.sql-shm',
+          'cp database/backup/sync/' + name + ' database/' + db + '.sql',
+          'docker start lampac'
+        ].join('\n');
+        $('#bkRestoreHint').textContent = tr('Восстановление вручную (контейнер должен быть остановлен; текущая база сохраняется как .before-restore). Откат: верните файл .before-restore на место.', 'Manual restore (container must be stopped; current DB is saved as .before-restore). Rollback: move .before-restore back.');
+        const ta = $('#bkCmd');
+        ta.value = cmd;
+        ta.hidden = false;
+      }
+
+      async function loadRepository() {
+        try {
+          const r = await api('/adminpanel/api/repository');
+          const d = await r.json();
+          rpMask = d.mask || rpMask;
+          $('#rpText').value = d.text || '';
+          if (!d.exists) showToast(tr('repository.yaml не найден — сохранение создаст файл ' + d.file, 'repository.yaml not found — saving will create ' + d.file), 'warn');
+        } catch (e) {
+          showToast(tr('Не удалось прочитать repository.yaml', 'Failed to read repository.yaml'), 'err');
+        }
+      }
+
+      $('#bkCreate').addEventListener('click', async () => {
+        const res = await api('/adminpanel/api/sync-backup/create', { method: 'POST' });
+        const d = await res.json().catch(() => ({}));
+        if (res.ok) showToast(tr('Копия создана: ', 'Backup created: ') + (d.made || []).join(', '), d.warning ? 'warn' : 'ok');
+        else showToast((d.error || 'error') + (d.detail ? ': ' + d.detail : ''), 'err');
+        loadBackupPanel();
+      });
+
+      $('#bkAuto').addEventListener('change', async e => {
+        const res = await api('/adminpanel/api/sync-backup/auto', { method: 'POST', body: JSON.stringify({ enabled: e.target.checked }) });
+        showToast(res.ok ? tr('Настройка сохранена', 'Setting saved') : tr('Не удалось сохранить', 'Save failed'), res.ok ? 'ok' : 'err');
+      });
+
+      $('#rpReload').addEventListener('click', loadRepository);
+      $('#rpSave').addEventListener('click', async () => {
+        if (!(await showConfirm(tr('Сохранить repository.yaml?', 'Save repository.yaml?'), tr('Изменения применятся после перезапуска контейнера. Неверный список модулей может помешать их установке.', 'Changes apply after container restart. A wrong list may prevent modules from installing.')))) return;
+        const res = await api('/adminpanel/api/repository', { method: 'POST', body: JSON.stringify({ text: $('#rpText').value }) });
+        const d = await res.json().catch(() => ({}));
+        if (res.ok) {
+          showToast(tr('repository.yaml сохранён. Перезапустите контейнер.', 'Saved. Restart the container.') + (d.backup ? ' (' + d.backup + ')' : ''), 'ok');
+          loadRepository();
+        } else showToast((d.error || 'error') + (d.detail ? ': ' + d.detail : ''), 'err');
+      });
+
       async function openBackups() {
         const res = await api('/adminpanel/api/backups');
         if (!res.ok) {
@@ -4591,7 +4739,7 @@
 
       // Реально загруженные модули с сервера: [{name, group}]. null — сервер старый или запрос не удался (тогда работает статический каталог).
       // Версия панели (index.html). Должна совпадать с version.json на сервере.
-      const PANEL_VERSION = '1.2.0';
+      const PANEL_VERSION = '1.3.0';
       async function showVersion() {
         const el = $('#panelVer');
         if (!el) return;
