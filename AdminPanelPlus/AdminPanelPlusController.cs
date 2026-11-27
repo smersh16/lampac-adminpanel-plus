@@ -78,6 +78,18 @@ public class AdminPanelPlusController : BaseController
         return Content(JsonConvert.SerializeObject(built, CamelSettings), "application/json; charset=utf-8");
     }
 
+    // Версия модуля: version.json лежит рядом с index.html. Панель сравнивает её со своей, чтобы заметить неполное обновление.
+    [HttpGet]
+    [Route("/adminpanel/api/version")]
+    public ActionResult Version()
+    {
+        var path = Path.Combine(ModInit.modpath, "version.json");
+        if (!System.IO.File.Exists(path))
+            return Content("{}", "application/json; charset=utf-8");
+
+        return Content(System.IO.File.ReadAllText(path, Encoding.UTF8), "application/json; charset=utf-8");
+    }
+
     // Подсказки к параметрам: hints.json лежит рядом с index.html.
     [HttpGet]
     [Route("/adminpanel/api/hints")]

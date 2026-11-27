@@ -1983,6 +1983,8 @@
     @keyframes pvpulse { 50% { opacity: .25; } }
     .pv-unl { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-xs); color: var(--text-muted); cursor: pointer; white-space: nowrap; }
     .pv-off { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 999px; font-size: var(--text-xs); background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border); cursor: help; }
+    .panel-ver { font-size: var(--text-xs); font-weight: 500; color: var(--text-muted); margin-left: 2px; cursor: help; }
+    .panel-ver.warn { color: var(--warn); }
     .pv-note { font-size: var(--text-xs); color: var(--text-muted); margin: 0 0 var(--sp-3); line-height: 1.5; }
     .pv-sw { position: relative; display: inline-block; width: 40px; height: 22px; }
     .pv-sw input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; z-index: 1; }
@@ -2046,7 +2048,7 @@
             <rect x="12.5" y="11" width="3" height="11" rx="1" fill="var(--accent)" opacity="0.7" />
             <rect x="18" y="6" width="3" height="16" rx="1" fill="var(--accent)" opacity="0.45" />
           </svg>
-          Lampac <span>Admin Plus</span>
+          Lampac <span>Admin Plus</span> <small class="panel-ver" id="panelVer"></small>
         </div>
 
         <div class="topbar-divider"></div>
@@ -4117,6 +4119,7 @@
           await loadHints();
           await loadModCatalog();
           await loadLoadedMods();
+          await showVersion();
           renderSections();
           renderSimpleSections();
           provChanges = {};
@@ -4498,6 +4501,32 @@
       }
 
       // Реально загруженные модули с сервера: [{name, group}]. null — сервер старый или запрос не удался (тогда работает статический каталог).
+      // Версия панели (index.html). Должна совпадать с version.json на сервере.
+      const PANEL_VERSION = '1.1.0';
+      async function showVersion() {
+        const el = $('#panelVer');
+        if (!el) return;
+        let srv = null;
+        try { const r = await api('/adminpanel/api/version'); if (r.ok) srv = await r.json(); } catch (e) { }
+        const sv = srv && srv.version ? String(srv.version) : '';
+        el.textContent = 'v' + PANEL_VERSION;
+        let tip = tr('Версия страницы панели: ', 'Panel page version: ') + PANEL_VERSION;
+        if (!sv) {
+          el.classList.add('warn');
+          el.textContent += ' ⚠';
+          tip += '\n' + tr('Сервер не отдал версию: серверная часть старее страницы. Перезапустите контейнер (docker restart lampac).', 'The server returned no version: server code is older than the page. Restart the container (docker restart lampac).');
+        } else if (sv !== PANEL_VERSION) {
+          el.classList.add('warn');
+          el.textContent += ' ⚠';
+          tip += '\n' + tr('Версия на сервере: ', 'Server version: ') + sv + '\n' + tr('Обновление неполное: перезапустите контейнер.', 'Update is partial: restart the container.');
+        } else {
+          tip += '\n' + tr('Серверная часть совпадает.', 'Server part matches.') + (srv.date ? ' (' + srv.date + ')' : '');
+        }
+        if (loadedMods) tip += '\n' + tr('Загружено модулей (с сервера): ', 'Loaded modules (from server): ') + loadedMods.length;
+        else tip += '\n' + tr('Список загруженных модулей недоступен (старая серверная часть).', 'Loaded-modules list unavailable (old server code).');
+        el.title = tip;
+      }
+
       let loadedMods = null;
       async function loadLoadedMods() {
         try {
@@ -5849,6 +5878,7 @@
           await loadHints();
           await loadModCatalog();
           await loadLoadedMods();
+          await showVersion();
           renderSections();
           renderSimpleSections();
           provChanges = {};
