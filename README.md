@@ -49,7 +49,7 @@ Lampac умеет сам подтягивать модули из репозит
 
 ```yaml
 - repository: https://github.com/smersh16/lampac-adminpanel-plus
-  branch: main
+  branch: stable
   modules:
     - AdminPanelPlus
 ```
