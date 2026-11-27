@@ -4,6 +4,7 @@
   "tree": [
     "AdminPanelPlusController.cs",
     "ConfigSectionGroups.cs",
+    "HealthCheck.cs",
     "ModInit.cs"
   ]
 }

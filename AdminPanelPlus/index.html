@@ -1992,6 +1992,50 @@
     .pv-sw input:checked + span::after { transform: translateX(18px); }
     .pv-sw input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
     .pv-empty { padding: var(--sp-6, 32px) var(--sp-4); text-align: center; color: var(--text-muted); font-size: var(--text-sm); }
+    .hc-bar { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; margin-bottom: var(--sp-3); }
+    .hc-bar .pv-count { margin-left: auto; }
+    .hc-set { border: 1px solid var(--border); border-radius: var(--r-xl); background: var(--surface); margin-bottom: var(--sp-3); }
+    .hc-set > summary { cursor: pointer; font-weight: 600; font-size: var(--text-sm); padding: 10px var(--sp-4); }
+    .hc-set-body { padding: 0 var(--sp-4) var(--sp-4); }
+    .hc-srow { display: grid; grid-template-columns: 96px minmax(120px, 1.4fr) minmax(110px, 1.2fr) 64px 84px 96px 84px 32px; gap: 6px; align-items: center; margin-bottom: 6px; }
+    .hc-srow.hc-shead { font-size: var(--text-xs); font-weight: 700; color: var(--text-muted); }
+    .hc-row { display: grid; grid-template-columns: minmax(130px, 1.2fr) 140px minmax(160px, 3fr) 70px 96px; gap: var(--sp-3); align-items: center; padding: 8px var(--sp-4); border-top: 1px solid var(--border-subtle); }
+    .hc-row.hc-head { border-top: 0; font-size: var(--text-xs); font-weight: 700; color: var(--text-muted); background: var(--surface-2); padding-top: 10px; padding-bottom: 10px; }
+    .hc-st { display: flex; align-items: center; gap: 6px; font-size: var(--text-sm); min-width: 0; }
+    .hc-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--text-faint); flex-shrink: 0; }
+    .hc-dot.ok { background: var(--ok); }
+    .hc-dot.fail { background: var(--err); }
+    .hc-dot.nodata { background: var(--warn); }
+    .hc-dot.run { background: var(--accent); animation: pvpulse 1s infinite; }
+    .hc-det { font-size: var(--text-xs); color: var(--text-muted); line-height: 1.5; min-width: 0; overflow-wrap: anywhere; }
+    .hc-det div + div { margin-top: 2px; }
+    .hc-hosts { margin-top: var(--sp-5, 24px); }
+    .hc-hosts h3 { font-size: var(--text-base, 15px); margin: 0 0 var(--sp-2); }
+    .hc-hrow { display: grid; grid-template-columns: minmax(160px, 2fr) 120px minmax(120px, 1.4fr) 110px minmax(140px, 2fr); gap: var(--sp-3); align-items: center; padding: 8px var(--sp-4); border-top: 1px solid var(--border-subtle); font-size: var(--text-sm); }
+    .hc-hrow.hc-head { border-top: 0; font-size: var(--text-xs); font-weight: 700; color: var(--text-muted); background: var(--surface-2); padding-top: 10px; padding-bottom: 10px; }
+    .hc-hrow .mono { font-family: var(--font-mono); font-size: var(--text-xs); overflow-wrap: anywhere; }
+    .hc-hrow.bad .mono:first-child { color: var(--err); }
+    .hc-rep { width: 100%; box-sizing: border-box; min-height: 220px; font-family: var(--font-mono); font-size: var(--text-xs); background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: var(--r-md); padding: 8px; resize: vertical; }
+    @media (max-width: 900px) {
+      .hc-hrow.hc-head { display: none; }
+      .hc-hrow { grid-template-columns: 1fr; gap: 2px; }
+    }
+    .hc-prog { margin-bottom: var(--sp-3); padding: 10px var(--sp-4); border: 1px solid var(--border); border-radius: var(--r-xl); background: var(--surface); }
+    .hc-prog-top { display: flex; justify-content: space-between; gap: var(--sp-3); font-size: var(--text-sm); margin-bottom: 6px; }
+    .hc-prog-time { color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .hc-prog-bar { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+    .hc-prog-fill { height: 100%; width: 0; background: var(--accent); border-radius: 3px; transition: width .25s var(--ease, ease); }
+    .hc-prog-fill.indet { width: 35%; animation: hcslide 1.2s ease-in-out infinite; }
+    @keyframes hcslide { 0% { margin-left: -35%; } 100% { margin-left: 100%; } }
+    .hc-step { display: inline-block; padding: 0 6px; margin-right: 4px; border-radius: 999px; font-size: var(--text-xs); background: var(--surface-2); }
+    .hc-step.ok { background: var(--ok-dim, var(--accent-dim)); color: var(--ok); }
+    .hc-step.fail { background: var(--err-dim, var(--surface-2)); color: var(--err); }
+    @media (max-width: 900px) {
+      .hc-row.hc-head, .hc-srow.hc-shead { display: none; }
+      .hc-row { grid-template-columns: 1fr 96px; }
+      .hc-row > .hc-det { grid-column: 1 / -1; }
+      .hc-srow { grid-template-columns: 1fr 1fr; }
+    }
     @media (max-width: 900px) {
       .pv-row.pv-head { display: none; }
       .pv-row { grid-template-columns: 1fr 48px; gap: 6px var(--sp-3); }
@@ -2069,6 +2113,11 @@
               stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
             Провайдеры
           </button>
+          <button type="button" class="tab" data-panel="health" role="tab">
+            <svg style="width:12px;height:12px;margin-right:4px;vertical-align:-1px" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Проверка
+          </button>
           <button type="button" class="tab" data-panel="modules" role="tab">
             <svg style="width:12px;height:12px;margin-right:4px;vertical-align:-1px" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
@@ -2133,6 +2182,7 @@
       <div class="mobile-tabs" id="mobileTabs">
         <button type="button" class="tab active" data-panel="overview">Обзор</button>
         <button type="button" class="tab" data-panel="providers">Провайдеры</button>
+        <button type="button" class="tab" data-panel="health">Проверка</button>
         <button type="button" class="tab" data-panel="modules">Модули</button>
         <button type="button" class="tab" data-panel="transcode">Транскодинг</button>
         <button type="button" class="tab" data-panel="simple">Редактор</button>
@@ -2262,6 +2312,47 @@
           </div>
           <p class="pv-note" id="pvProbeNote"></p>
           <div class="pv-table" id="pvMount"></div>
+        </div>
+
+        <!-- PANEL: Health check -->
+        <div class="panel" id="panel-health" data-panel="health">
+          <div class="panel-header">
+            <div class="panel-header-info">
+              <h2 id="hcTitle">Проверка провайдеров</h2>
+              <p id="hcIntro"></p>
+            </div>
+          </div>
+          <details class="hc-set" id="hcSetBox">
+            <summary id="hcSetSum"></summary>
+            <div class="hc-set-body" id="hcSetMount"></div>
+          </details>
+          <div class="hc-bar">
+            <button type="button" class="btn btn-primary btn-sm" id="hcRunAll"></button>
+            <button type="button" class="btn btn-ghost btn-sm" id="hcStop" hidden></button>
+            <div class="pv-seg" id="hcFilter" role="group"></div>
+            <div class="pv-count" id="hcCount"></div>
+          </div>
+          <div class="hc-prog" id="hcProg" hidden>
+            <div class="hc-prog-top"><span id="hcProgText"></span><span class="hc-prog-time" id="hcProgTime"></span></div>
+            <div class="hc-prog-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="hcProgBar"><div class="hc-prog-fill" id="hcProgFill"></div></div>
+          </div>
+          <p class="pv-note" id="hcNote"></p>
+          <div class="pv-table" id="hcMount"></div>
+          <div class="hc-hosts" id="hcHosts" hidden>
+            <h3 id="hcHostsTitle"></h3>
+            <p class="pv-note" id="hcHostsNote"></p>
+            <div class="hc-bar">
+              <div class="pv-seg" id="hcHostFilter" role="group"></div>
+              <button type="button" class="btn btn-ghost btn-sm" id="hcCopyDomains"></button>
+              <button type="button" class="btn btn-ghost btn-sm" id="hcCopyReport"></button>
+              <button type="button" class="btn btn-ghost btn-sm" id="hcDownload"></button>
+            </div>
+            <div class="pv-table" id="hcHostsMount"></div>
+            <details class="hc-set" style="margin-top:var(--sp-3)" id="hcRepBox">
+              <summary id="hcRepSum"></summary>
+              <div class="hc-set-body"><textarea class="hc-rep" id="hcRep" readonly spellcheck="false"></textarea></div>
+            </details>
+          </div>
         </div>
 
         <!-- PANEL: Modules -->
@@ -2614,7 +2705,7 @@
           ss.hidden = id !== 'simple';
         }
         const lay = $('.layout');
-        if (lay) lay.classList.toggle('no-side', id === 'overview' || id === 'users' || id === 'providers' || id === 'modules' || id === 'transcode');
+        if (lay) lay.classList.toggle('no-side', id === 'overview' || id === 'users' || id === 'providers' || id === 'health' || id === 'modules' || id === 'transcode');
         updateSaveBtn();
       }
 
@@ -4242,6 +4333,7 @@
         syncLangBtn();
         renderSimpleSections();
         renderProviders();
+        renderHealth();
         renderModules(false);
         tcChanges = {};
         renderTranscode();
@@ -4499,7 +4591,7 @@
 
       // Реально загруженные модули с сервера: [{name, group}]. null — сервер старый или запрос не удался (тогда работает статический каталог).
       // Версия панели (index.html). Должна совпадать с version.json на сервере.
-      const PANEL_VERSION = '1.1.3';
+      const PANEL_VERSION = '1.2.0';
       async function showVersion() {
         const el = $('#panelVer');
         if (!el) return;
@@ -5843,6 +5935,615 @@
           $('#sidebar').classList.remove('open');
         }
       });
+
+      /* ── Проверка провайдеров (с сервера Lampac) ── */
+      const HC_KINDS = [['movie', 'Фильм', 'Movie'], ['serial', 'Сериал', 'Series'], ['anime', 'Аниме', 'Anime']];
+      const HC_STEPS = [['search', 'поиск', 'search'], ['browse', 'выбор', 'browse'], ['link', 'ссылка', 'link'], ['manifest', 'манифест', 'manifest'], ['segment', 'сегмент', 'segment']];
+      const hc = { samples: [], custom: false, rows: {}, order: [], running: false, stop: false, filter: 'all', loaded: false };
+
+      function hcEl(tag, cls, text) {
+        const e = document.createElement(tag);
+        if (cls) e.className = cls;
+        if (text != null) e.textContent = text;
+        return e;
+      }
+
+      async function hcJson(path, opts) {
+        const r = await api(path, opts);
+        let j = null;
+        try { j = await r.json(); } catch (e) { }
+        if (!r.ok) throw new Error((j && (j.detail ? j.error + ': ' + j.detail : j.error)) || ('HTTP ' + r.status));
+        return j;
+      }
+
+      async function hcLoadSamples() {
+        const j = await hcJson('/adminpanel/api/healthcheck/samples');
+        hc.samples = j.samples || [];
+        hc.custom = !!j.custom;
+        hc.loaded = true;
+      }
+
+      function hcKindName(k) { const x = HC_KINDS.find(i => i[0] === k) || HC_KINDS[0]; return tr(x[1], x[2]); }
+
+      function hcRenderSamples() {
+        const mount = $('#hcSetMount');
+        mount.innerHTML = '';
+        $('#hcSetSum').textContent = tr('Тестовые тайтлы', 'Test titles') + ' (' + hc.samples.length + (hc.custom ? tr(', свои', ', custom') : tr(', по умолчанию', ', default')) + ')';
+
+        const head = hcEl('div', 'hc-srow hc-shead');
+        [tr('Тип', 'Type'), tr('Название', 'Title'), tr('Оригинальное название', 'Original title'), tr('Год', 'Year'), 'TMDB id', 'IMDb id', 'KP id', ''].forEach(t => head.appendChild(hcEl('div', null, t)));
+        mount.appendChild(head);
+
+        hc.samples.forEach((smp, idx) => {
+          const row = hcEl('div', 'hc-srow');
+          const kind = hcEl('select', 'pv-select');
+          HC_KINDS.forEach(k => { const o = hcEl('option', null, tr(k[1], k[2])); o.value = k[0]; kind.appendChild(o); });
+          kind.value = smp.kind;
+          kind.addEventListener('change', () => { smp.kind = kind.value; });
+          row.appendChild(kind);
+          [['title', 'text'], ['original_title', 'text'], ['year', 'number'], ['tmdb_id', 'number'], ['imdb_id', 'text'], ['kinopoisk_id', 'number']].forEach(([f, t]) => {
+            const inp = hcEl('input', 'pv-in');
+            inp.type = t;
+            inp.value = smp[f] ? smp[f] : '';
+            inp.addEventListener('input', () => {
+              smp[f] = t === 'number' ? (parseInt(inp.value, 10) || 0) : inp.value;
+            });
+            row.appendChild(inp);
+          });
+          const del = hcEl('button', 'btn btn-ghost btn-sm', '×');
+          del.type = 'button';
+          del.title = tr('Удалить', 'Remove');
+          del.addEventListener('click', () => { hc.samples.splice(idx, 1); hcRenderSamples(); });
+          row.appendChild(del);
+          mount.appendChild(row);
+        });
+
+        const bar = hcEl('div', 'hc-bar');
+        const add = hcEl('button', 'btn btn-ghost btn-sm', tr('Добавить тайтл', 'Add title'));
+        add.type = 'button';
+        add.addEventListener('click', () => {
+          hc.samples.push({ id: '', kind: 'movie', title: '', original_title: '', year: 0, tmdb_id: 0, imdb_id: '', kinopoisk_id: 0, original_language: '' });
+          hcRenderSamples();
+        });
+        const save = hcEl('button', 'btn btn-primary btn-sm', tr('Сохранить тайтлы', 'Save titles'));
+        save.type = 'button';
+        save.addEventListener('click', () => hcSaveSamples(false));
+        const reset = hcEl('button', 'btn btn-ghost btn-sm', tr('Сбросить к умолчанию', 'Reset to default'));
+        reset.type = 'button';
+        reset.addEventListener('click', () => hcSaveSamples(true));
+        bar.append(add, save, reset);
+        mount.appendChild(bar);
+        mount.appendChild(hcEl('p', 'pv-note', tr(
+          'Если указан TMDB id, Lampac сам подтянет остальные id. Без id (только название и год) работают провайдеры, которые ищут по названию, в том числе аниме. Тип «Аниме» проверяет аниме-провайдеров, «Фильм» и «Сериал» — остальные. Провайдер считается рабочим, если прошёл хотя бы один тайтл.',
+          'With a TMDB id Lampac resolves the other ids itself. Without ids (title and year only) title-search providers work, anime included. The Anime type checks anime providers, Movie and Series the rest. A provider counts as working if at least one title passes.')));
+      }
+
+      async function hcSaveSamples(reset) {
+        try {
+          const body = reset ? { samples: [] } : { samples: hc.samples.filter(x => (x.title || '').trim()) };
+          const j = await hcJson('/adminpanel/api/healthcheck/samples', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+          hc.samples = j.samples || [];
+          hc.custom = !!j.custom;
+          hc.rows = {}; hc.order = []; hc.probe = {};
+          hcRenderSamples();
+          renderHealth();
+          showToast(reset ? tr('Тайтлы сброшены', 'Titles reset') : tr('Тайтлы сохранены', 'Titles saved'), 'ok');
+        } catch (e) { showToast(e.message || String(e), 'err'); }
+      }
+
+      function hcStatusOf(row) {
+        const rs = Object.values(row.results);
+        if (row.running) return 'run';
+        if (!rs.length) return 'idle';
+        if (rs.some(r => r.status === 'ok')) return 'ok';
+        if (rs.some(r => r.status === 'fail')) return 'fail';
+        return 'nodata';
+      }
+
+      function hcLabel(st) {
+        return { run: tr('Проверяется…', 'Checking…'), idle: tr('Не проверялся', 'Not checked'), ok: tr('Работает', 'Working'), fail: tr('Сбой', 'Failed'), nodata: tr('Нет данных по тайтлам', 'No data for titles') }[st];
+      }
+
+      function hcStepLabel(n) { const x = HC_STEPS.find(i => i[0] === n); return x ? tr(x[1], x[2]) : n; }
+
+      function renderHealth() {
+        if (!$('#hcMount')) return;
+        $('#hcTitle').textContent = tr('Проверка провайдеров', 'Provider check');
+        $('#hcIntro').textContent = tr(
+          'Проверяет с сервера Lampac, так же как играет плеер: поиск по тестовому тайтлу, получение ссылки, манифест и первый сегмент. Это не то же самое, что проверка адреса из браузера на вкладке «Провайдеры».',
+          'Checks from the Lampac server, the way the player plays: search by a test title, get the link, manifest and first segment. This is not the same as the browser-side address check on the Providers tab.');
+        $('#hcNote').textContent = tr(
+          'Запускается только по кнопке: платные источники расходуют лимиты. Результат показывает, жив ли источник у сервера; воспроизведение на конкретном телевизоре он не гарантирует.',
+          'Runs on demand only: paid sources spend their limits. The result shows whether the source works for the server; it does not guarantee playback on a particular TV.');
+        $('#hcRunAll').textContent = hc.running ? tr('Идёт проверка…', 'Checking…') : tr('Проверить все', 'Check all');
+        $('#hcRunAll').disabled = hc.running;
+        const stop = $('#hcStop');
+        stop.textContent = tr('Остановить', 'Stop');
+        stop.hidden = !hc.running;
+        $('#hcSetBox').hidden = false;
+
+        const seg = $('#hcFilter');
+        seg.innerHTML = '';
+        [['all', tr('Все', 'All')], ['ok', tr('Работают', 'Working')], ['fail', tr('Сбои', 'Failed')], ['nodata', tr('Нет данных', 'No data')]].forEach(([id, t]) => {
+          const b = hcEl('button', null, t);
+          b.type = 'button';
+          b.classList.toggle('active', hc.filter === id);
+          b.addEventListener('click', () => { hc.filter = id; renderHealth(); });
+          seg.appendChild(b);
+        });
+
+        const mount = $('#hcMount');
+        mount.innerHTML = '';
+        const head = hcEl('div', 'hc-row hc-head');
+        [tr('Провайдер', 'Provider'), tr('Состояние', 'Status'), tr('Шаги по тайтлам', 'Steps per title'), tr('Время', 'Time'), ''].forEach(t => head.appendChild(hcEl('div', null, t)));
+        mount.appendChild(head);
+
+        const keys = hc.order.filter(k => hc.filter === 'all' || hcStatusOf(hc.rows[k]) === hc.filter);
+        let n = { ok: 0, fail: 0, nodata: 0 };
+        hc.order.forEach(k => { const st = hcStatusOf(hc.rows[k]); if (n[st] != null) n[st]++; });
+        $('#hcCount').textContent = hc.order.length
+          ? tr('Работают: ', 'Working: ') + n.ok + ' · ' + tr('сбои: ', 'failed: ') + n.fail + ' · ' + tr('нет данных: ', 'no data: ') + n.nodata
+          : '';
+
+        hcRenderHosts();
+
+        if (!keys.length) {
+          mount.appendChild(hcEl('div', 'pv-empty', hc.order.length ? tr('Нет провайдеров с таким состоянием.', 'No providers in this state.') : (hc.running ? tr('Идёт проверка: получаю список провайдеров у сервера…', 'Check in progress: getting the provider list from the server…') : tr('Нажмите «Проверить все»: список провайдеров берётся у сервера для каждого тестового тайтла.', 'Press “Check all”: the provider list is taken from the server for each test title.'))));
+          return;
+        }
+
+        keys.forEach(k => {
+          const row = hc.rows[k];
+          const st = hcStatusOf(row);
+          const r = hcEl('div', 'hc-row');
+          r.dataset.key = k;
+          r.appendChild(hcEl('div', 'pv-name', row.name || k));
+          const stc = hcEl('div', 'hc-st');
+          stc.appendChild(hcEl('span', 'hc-dot ' + (st === 'idle' ? '' : st)));
+          stc.appendChild(hcEl('span', null, hcLabel(st)));
+          r.appendChild(stc);
+
+          const det = hcEl('div', 'hc-det');
+          Object.keys(row.targets).forEach(sid => {
+            const smp = hc.samples.find(x => x.id === sid);
+            const res = row.results[sid];
+            const line = hcEl('div');
+            line.appendChild(hcEl('b', null, (smp ? smp.title : sid) + ': '));
+            if (!res) {
+              line.appendChild(document.createTextNode(row.running ? '…' : '—'));
+            } else if (res.status === 'nodata') {
+              line.appendChild(document.createTextNode(tr('нет в каталоге провайдера', 'not in provider catalog')));
+            } else if (res.error) {
+              line.appendChild(document.createTextNode(res.error));
+            } else {
+              (res.steps || []).forEach(sp => {
+                const c = hcEl('span', 'hc-step ' + (sp.ok ? 'ok' : 'fail'), hcStepLabel(sp.name));
+                if (sp.detail) c.title = sp.detail;
+                line.appendChild(c);
+              });
+              const bad = (res.steps || []).find(sp => !sp.ok);
+              if (bad && bad.detail) line.appendChild(document.createTextNode(bad.detail));
+              if (res.status === 'ok' && res.via) line.appendChild(document.createTextNode(res.via === 'direct' ? tr(' напрямую с CDN', ' direct from CDN') : tr(' через прокси Lampac', ' via Lampac proxy')));
+            }
+            det.appendChild(line);
+          });
+          r.appendChild(det);
+
+          const total = Object.values(row.results).reduce((a, x) => a + ((x.steps || []).reduce((b, sp) => b + (sp.ms || 0), 0)), 0);
+          r.appendChild(hcEl('div', 'hc-det', total ? (total / 1000).toFixed(1) + ' ' + tr('с', 's') : ''));
+
+          const btn = hcEl('button', 'btn btn-ghost btn-sm', tr('Проверить', 'Check'));
+          btn.type = 'button';
+          btn.disabled = hc.running;
+          btn.addEventListener('click', () => hcRun([k]));
+          r.appendChild(btn);
+          mount.appendChild(r);
+        });
+      }
+
+      /* ── Индикатор прогресса ── */
+      hc.prog = null;
+      hc.timer = null;
+
+      function hcFmtTime(ms) {
+        const t = Math.max(0, Math.round(ms / 1000));
+        return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0');
+      }
+
+      function hcRenderProgress() {
+        const box = $('#hcProg');
+        if (!box) return;
+        if (!hc.prog) { box.hidden = true; return; }
+        box.hidden = false;
+        const pr = hc.prog;
+        const known = pr.total > 0;
+        $('#hcProgText').textContent = pr.label + (known ? ': ' + pr.done + ' ' + tr('из', 'of') + ' ' + pr.total : '…');
+        $('#hcProgTime').textContent = tr('прошло ', 'elapsed ') + hcFmtTime(Date.now() - pr.t0);
+        const fill = $('#hcProgFill');
+        fill.classList.toggle('indet', !known);
+        fill.style.width = known ? Math.min(100, Math.round(pr.done * 100 / pr.total)) + '%' : '';
+        $('#hcProgBar').setAttribute('aria-valuenow', known ? String(Math.round(pr.done * 100 / pr.total)) : '');
+      }
+
+      // label: что делаем сейчас; done/total: сколько готово (total = 0, если счёт неизвестен). Секундомер идёт сам, пока этап не завершён.
+      function hcProgSet(label, done, total) {
+        if (!hc.prog) {
+          hc.prog = { t0: Date.now(), label: '', done: 0, total: 0 };
+          hc.timer = setInterval(hcRenderProgress, 1000);
+        }
+        hc.prog.label = label; hc.prog.done = done; hc.prog.total = total;
+        hcRenderProgress();
+      }
+
+      function hcProgEnd(msg) {
+        const took = hc.prog ? Date.now() - hc.prog.t0 : 0;
+        if (hc.timer) { clearInterval(hc.timer); hc.timer = null; }
+        hc.prog = null;
+        hcRenderProgress();
+        if (msg) showToast(msg + ' · ' + hcFmtTime(took), 'ok');
+      }
+
+      async function hcCollect() {
+        // для каждого тайтла берём у сервера список провайдеров (lite/events): адреса не угадываем
+        const next = {};
+        const label = tr('Получаю список провайдеров у сервера', 'Getting the provider list from the server');
+        let done = 0;
+        hcProgSet(label, 0, hc.samples.length);
+        const lists = await Promise.all(hc.samples.map(async smp => {
+          try {
+            const j = await hcJson('/adminpanel/api/healthcheck/providers?sample=' + encodeURIComponent(smp.id));
+            return { smp, providers: j.providers || [] };
+          } catch (e) {
+            showToast(smp.title + ': ' + (e.message || e), 'err');
+            return { smp, providers: [] };
+          } finally {
+            done++;
+            hcProgSet(label, done, hc.samples.length);
+          }
+        }));
+        lists.forEach(({ smp, providers }) => providers.forEach(p => {
+          const k = p.balanser || p.name;
+          if (!next[k]) next[k] = { name: p.name || k, targets: {}, results: {}, running: false };
+          next[k].targets[smp.id] = p.url;
+        }));
+        hc.rows = next;
+        hc.order = Object.keys(next).sort((a, b) => a.localeCompare(b));
+      }
+
+      async function hcRun(keys) {
+        if (hc.running) return;
+        hc.running = true;
+        hc.stop = false;
+        renderHealth();
+        try {
+          // провайдеры идут параллельно (до трёх), а тайтлы одного провайдера строго по очереди:
+          // так проверка сама не создаёт всплеск соединений к одному хосту и не вызывает ложных таймаутов
+          const queue = keys.slice();
+          let runTotal = 0;
+          keys.forEach(k => {
+            const row = hc.rows[k];
+            row.results = {};
+            row.running = true;
+            runTotal += Object.keys(row.targets).length;
+          });
+          renderHealth();
+
+          const runLabel = tr('Проверка провайдеров', 'Checking providers');
+          let runDone = 0;
+          hcProgSet(runLabel, 0, runTotal);
+
+          const worker = async () => {
+            while (queue.length && !hc.stop) {
+              const k = queue.shift();
+              const row = hc.rows[k];
+              for (const sid of Object.keys(row.targets)) {
+                if (hc.stop) break;
+                try {
+                  row.results[sid] = await hcJson('/adminpanel/api/healthcheck/run', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sample: sid, url: row.targets[sid] })
+                  });
+                } catch (e) {
+                  row.results[sid] = { status: 'fail', error: e.message || String(e), steps: [] };
+                }
+                runDone++;
+                hcProgSet(runLabel, runDone, runTotal);
+                renderHealth();
+              }
+              row.running = false;
+              renderHealth();
+            }
+          };
+          await Promise.all([worker(), worker(), worker()]);
+        } finally {
+          keys.forEach(k => { if (hc.rows[k]) hc.rows[k].running = false; });
+          const stopped = hc.stop;
+          if (!stopped) await hcProbeAll();
+          hc.running = false;
+          hcProgEnd(stopped ? tr('Проверка остановлена', 'Check stopped') : tr('Проверка завершена', 'Check finished'));
+          renderHealth();
+        }
+      }
+
+      $('#hcRunAll').addEventListener('click', async () => {
+        if (hc.running) return;
+        hc.running = true;
+        hc.stop = false;
+        hc.probe = {};
+        hc.rows = {};
+        hc.order = [];
+        hcProgSet(tr('Получаю список провайдеров у сервера', 'Getting the provider list from the server'), 0, hc.samples.length);
+        renderHealth();
+        try { await hcCollect(); } finally { hc.running = false; }
+        if (!hc.order.length) { hcProgEnd(); renderHealth(); showToast(tr('Сервер не вернул ни одного провайдера', 'The server returned no providers'), 'err'); return; }
+        await hcRun(hc.order.slice());
+      });
+      $('#hcStop').addEventListener('click', () => { hc.stop = true; });
+
+      /* ── Домены и IP для маршрутизации (VPN) и общий отчёт ── */
+      hc.hostFilter = 'net';
+      hc.probe = {};
+
+      const HC_CFG_SKIP = /^(overridehost|overridehosts|webcorshost|apn|cub|proxy|proxies)$/i;
+      const HC_KIND = {
+        ok: ['доступен', 'reachable'], dns: ['проблема DNS', 'DNS problem'], timeout: ['нет соединения (таймаут)', 'no connection (timeout)'],
+        unreachable: ['сеть недоступна', 'unreachable'], refused: ['соединение отклонено', 'connection refused'],
+        skip: ['не проверялось', 'skipped'], cert: ['соединение есть, сертификат не подходит', 'connected, certificate invalid'], reset: ['соединение сброшено', 'connection reset'], tls: ['TLS не установился (признак фильтрации)', 'TLS failed (filtering sign)'], error: ['ошибка', 'error']
+      };
+
+      function hcProviderCfg(balanser) {
+        const cfgKey = Object.keys(currentObj || {}).find(x => x.toLowerCase() === String(balanser).toLowerCase());
+        return cfgKey && isPlainObject(currentObj[cfgKey]) ? currentObj[cfgKey] : null;
+      }
+
+      function hcProviderHosts(balanser) {
+        // адреса, заданные у провайдера в настройках (host и т.п.): API/сайт самого источника, не CDN потоков
+        const out = new Set();
+        const obj = hcProviderCfg(balanser);
+        if (!obj) return [];
+        Object.keys(obj).forEach(f => {
+          const v = obj[f];
+          if (HC_CFG_SKIP.test(f) || typeof v !== 'string' || !/^https?:\/\//i.test(v)) return;
+          try { out.add(new URL(v).hostname.toLowerCase()); } catch (e) { }
+        });
+        return Array.from(out);
+      }
+
+      function hcAggregateHosts() {
+        const map = new Map();
+        const get = h => { if (!map.has(h)) map.set(h, { host: h, roles: new Set(), ips: new Set(), providers: new Set(), reqFailed: new Set(), errors: new Set(), upstream: false, tested: false, provProxy: false, reqOk: false }); return map.get(h); };
+        hc.order.forEach(k => {
+          const row = hc.rows[k];
+          const pname = row.name || k;
+          const st = hcStatusOf(row);
+          const cfg = hcProviderCfg(k);
+          const usesProxy = !!(cfg && (cfg.useproxy === true || cfg.useproxy === 'true'));
+          hcProviderHosts(k).forEach(h => {
+            const e = get(h);
+            e.roles.add('provider'); e.providers.add(pname);
+            if (usesProxy) e.provProxy = true;
+            if (st === 'ok') e.tested = true;
+          });
+          Object.values(row.results || {}).forEach(res => {
+            (res.hosts || []).forEach(x => {
+              const e = get(x.host);
+              e.tested = true;
+              e.roles.add(x.role); e.providers.add(pname);
+              (x.ips || []).forEach(ip => e.ips.add(ip));
+              if (x.upstreamProxy) e.upstream = true;
+              if (x.ok) e.reqOk = true;
+              else { e.reqFailed.add(pname); if (x.error) e.errors.add(x.error); }
+            });
+          });
+        });
+        map.forEach(e => {
+          e.probe = hc.probe[e.host] || null;
+          if (e.probe) (e.probe.ips || []).forEach(ip => e.ips.add(ip));
+          // проба не прошла, но реальный запрос к этому домену в этом прогоне удался: нестабильно, а не заблокировано
+          e.flaky = !!(e.probe && !e.probe.reachable && e.reqOk);
+          e.net = !!(e.probe && !e.probe.reachable && !e.reqOk);   // сервер не смог связаться с доменом: кандидат для VPN
+          e.cert = !!(e.probe && ((e.probe.v4 && e.probe.v4.kind === 'cert') || (e.probe.v6 && e.probe.v6.kind === 'cert')));
+          e.partial = !!(e.probe && e.probe.partial);       // работает только одно из IPv4/IPv6
+          e.bad = e.net || e.flaky || e.cert || e.partial || e.reqFailed.size > 0; // любой сбой, в том числе ответ с ошибкой от доступного сервера
+        });
+        return Array.from(map.values()).sort((a, b) => (b.net - a.net) || (b.bad - a.bad) || a.host.localeCompare(b.host));
+      }
+
+      function hcRoleName(r) { return { provider: tr('сайт/API провайдера', 'provider site/API'), manifest: tr('манифест потока', 'stream manifest'), segment: tr('сегменты видео', 'video segments') }[r] || r; }
+
+      function hcFamText(f) {
+        const k = HC_KIND[f.kind] || HC_KIND.error;
+        if (f.kind === 'cert') return tr(k[0], k[1]) + (f.detail ? ': ' + f.detail : '');
+        if (f.reachable) return tr(k[0], k[1]) + ' (HTTP ' + f.code + (f.ms ? ', ' + f.ms + ' ' + tr('мс', 'ms') : '') + ')';
+        return tr(k[0], k[1]) + (f.detail && f.kind !== 'timeout' ? ': ' + f.detail : '');
+      }
+
+      function hcProbeText(p) {
+        if (!p) return tr('сеть не проверялась', 'network not probed');
+        if (!p.v4 && !p.v6) {
+          const k = HC_KIND[p.kind] || HC_KIND.error;
+          return tr(k[0], k[1]) + (p.detail ? ': ' + p.detail : '');
+        }
+        const parts = [];
+        if (p.v4) parts.push('IPv4: ' + hcFamText(p.v4));
+        if (p.v6) parts.push('IPv6: ' + hcFamText(p.v6));
+        return (p.partial ? tr('частично: ', 'partial: ') : '') + parts.join(' · ');
+      }
+
+      function hcFilterHosts(all) {
+        return hc.hostFilter === 'net' ? all.filter(e => e.net) : hc.hostFilter === 'bad' ? all.filter(e => e.bad) : all;
+      }
+
+      function hcRenderHosts() {
+        const box = $('#hcHosts');
+        if (!box) return;
+        const all = hcAggregateHosts();
+        box.hidden = !hc.order.length;
+        if (!hc.order.length) return;
+
+        $('#hcHostsTitle').textContent = tr('Домены и IP для маршрутизации через VPN', 'Domains and IPs for VPN routing');
+        $('#hcHostsNote').textContent = tr(
+          'Домены потоков (манифест, сегменты) взяты из ссылок за /proxy/ Lampac: это реальные узлы CDN, к которым ходит сервер; при «direct» поток тянет сам плеер. Состояние сети проверяется отдельно: сервер Lampac открывает TLS-соединение на 443 к каждому домену. «Недоступны» — кандидаты для VPN (нет соединения, таймаут, сброс, сбой TLS или DNS отдаёт служебный адрес). «Любые сбои» добавляют домены, которые отвечают, но запрос к ним дал ошибку: это обычно не про VPN. HTTP 503 на поиске провайдера не означает недоступность домена: так Lampac отвечает и когда тайтла нет, и когда сайт не ответил. Если у провайдера включён useproxy, проверка с сервера для него не показательна. IP определены DNS сервера Lampac, резолвер роутера или VPN может отдать другие, поэтому в списки лучше добавлять домены.',
+          'Stream domains (manifest, segments) come from Lampac /proxy/ links: these are the real CDN nodes the server talks to; for “direct” streams the player fetches them itself. Network state is probed separately: the Lampac server opens a TLS connection on 443 to each domain. “Unreachable” are VPN candidates (no connection, timeout, reset, TLS failure or DNS returns a special address). “Any failure” adds domains that answer but whose request errored: usually not a VPN matter. HTTP 503 on provider search does not mean the domain is down: Lampac answers it both when the title is missing and when the site did not respond. If a provider has useproxy set, a server-side probe is not representative. IPs come from the Lampac server DNS; a router or VPN resolver may return others, so prefer adding domains.');
+        if (hc.serverIpv6 === false) $('#hcHostsNote').textContent += tr(' У сервера Lampac нет IPv6, поэтому IPv6-адреса доменов не проверялись.', ' The Lampac server has no IPv6, so IPv6 addresses were not probed.');
+        $('#hcCopyDomains').textContent = tr('Копировать домены', 'Copy domains');
+        $('#hcCopyReport').textContent = tr('Копировать отчёт', 'Copy report');
+        $('#hcDownload').textContent = tr('Скачать JSON', 'Download JSON');
+        $('#hcRepSum').textContent = tr('Отчёт для анализа (текст)', 'Report for analysis (text)');
+
+        const seg = $('#hcHostFilter');
+        seg.innerHTML = '';
+        [['net', tr('Недоступны', 'Unreachable')], ['bad', tr('Любые сбои', 'Any failure')], ['all', tr('Все', 'All')]].forEach(([id, t]) => {
+          const b = hcEl('button', null, t);
+          b.type = 'button';
+          b.classList.toggle('active', hc.hostFilter === id);
+          b.addEventListener('click', () => { hc.hostFilter = id; hcRenderHosts(); });
+          seg.appendChild(b);
+        });
+
+        const list = hcFilterHosts(all);
+        const mount = $('#hcHostsMount');
+        mount.innerHTML = '';
+        const head = hcEl('div', 'hc-hrow hc-head');
+        [tr('Домен', 'Domain'), tr('Роль', 'Role'), tr('Провайдеры', 'Providers'), tr('Состояние', 'Status'), 'IP'].forEach(t => head.appendChild(hcEl('div', null, t)));
+        mount.appendChild(head);
+        if (!list.length) {
+          mount.appendChild(hcEl('div', 'pv-empty', hc.hostFilter === 'net'
+            ? (Object.keys(hc.probe).length ? tr('Недоступных с сервера доменов нет.', 'No domains unreachable from the server.') : tr('Сеть ещё не проверялась: дождитесь конца проверки.', 'Network not probed yet: wait for the check to finish.'))
+            : tr('Нет данных.', 'No data.')));
+        }
+        list.forEach(e => {
+          const r = hcEl('div', 'hc-hrow' + (e.bad ? ' bad' : ''));
+          r.appendChild(hcEl('div', 'mono', e.host));
+          r.appendChild(hcEl('div', 'hc-det', Array.from(e.roles).map(hcRoleName).join(', ') + (e.upstream ? ' · ' + tr('через proxy провайдера', 'via provider proxy') : '')));
+          r.appendChild(hcEl('div', 'hc-det', Array.from(e.providers).join(', ') + (e.provProxy ? ' · useproxy' : '')));
+          const st = hcEl('div', 'hc-det');
+          st.appendChild(hcEl('div', null, hcProbeText(e.probe)));
+          if (e.flaky) st.appendChild(hcEl('div', null, tr('но реальный запрос к нему удался: нестабильно, не блокировка', 'but a real request to it succeeded: flaky, not blocked')));
+          if (e.reqFailed.size) st.appendChild(hcEl('div', null, tr('сбой запроса: ', 'request failed: ') + (Array.from(e.errors).slice(0, 2).join('; ') || Array.from(e.reqFailed).join(', '))));
+          r.appendChild(st);
+          r.appendChild(hcEl('div', 'mono', Array.from(e.ips).join(', ') || '—'));
+          mount.appendChild(r);
+        });
+
+        $('#hcRep').value = hcReportText(all);
+      }
+
+      function hcDomainsText() {
+        return hcFilterHosts(hcAggregateHosts()).map(e => e.host).join('\n');
+      }
+
+      function hcReportText(all) {
+        const lines = [];
+        const n = { ok: 0, fail: 0, nodata: 0, idle: 0, run: 0 };
+        hc.order.forEach(k => { n[hcStatusOf(hc.rows[k])]++; });
+        lines.push('Lampac provider check: ' + new Date().toLocaleString());
+        lines.push('Titles: ' + hc.samples.map(x => x.kind + ':' + x.title + (x.year ? ' (' + x.year + ')' : '')).join('; '));
+        lines.push('Summary: working ' + n.ok + ', failed ' + n.fail + ', no data ' + n.nodata + ', total ' + hc.order.length);
+        lines.push('Note: HTTP 503 on search = provider returned no result (title missing OR site did not answer); it is not proof that the domain is blocked. See network probe below.');
+        lines.push('');
+        lines.push('== Providers ==');
+        hc.order.forEach(k => {
+          const row = hc.rows[k];
+          const st = hcStatusOf(row);
+          lines.push((row.name || k) + ' [' + k + ']: ' + st.toUpperCase());
+          Object.keys(row.targets).forEach(sid => {
+            const smp = hc.samples.find(x => x.id === sid);
+            const res = row.results[sid];
+            const label = '  - ' + (smp ? smp.kind + ' ' + smp.title : sid) + ': ';
+            if (!res) { lines.push(label + 'not run'); return; }
+            if (res.status === 'nodata') { lines.push(label + 'no data (not in provider catalog)'); return; }
+            if (res.error) { lines.push(label + 'error: ' + res.error); return; }
+            const steps = (res.steps || []).map(sp => sp.name + (sp.ok ? ' ok' : ' FAIL') + (sp.ms ? ' ' + sp.ms + 'ms' : '') + (!sp.ok && sp.detail ? ' (' + sp.detail + ')' : '')).join(' > ');
+            lines.push(label + res.status + (res.via ? ' via ' + res.via : '') + ' | ' + steps);
+            (res.hosts || []).forEach(x => lines.push('      host ' + x.host + ' [' + x.role + '] ' + (x.ok ? 'ok' : 'FAIL' + (x.error ? ' ' + x.error : '')) + (x.ips && x.ips.length ? ' ips=' + x.ips.join(',') : '') + (x.upstreamProxy ? ' (provider proxy)' : '')));
+          });
+        });
+        lines.push('');
+        lines.push('== Domains: unreachable first. net = TLS probe from the Lampac server, req = failures of real requests ==');
+        all.forEach(e => {
+          const p = e.probe;
+          const fam = f => !f ? '-' : (f.kind === 'skip' ? 'skipped(' + f.detail + ')' : (f.reachable ? 'ok HTTP ' + f.code + ' ' + f.ms + 'ms' : f.kind + (f.detail ? ' (' + f.detail + ')' : '')));
+          const net = !p ? 'not probed' : ((p.reachable ? 'ok' : (e.reqOk ? 'PROBE FAILED but real request ok (flaky)' : 'UNREACHABLE')) + (p.partial ? ' PARTIAL' : '') + ((p.v4 || p.v6) ? ' [v4 ' + fam(p.v4) + '; v6 ' + fam(p.v6) + ']' : ' ' + p.kind + (p.detail ? ' (' + p.detail + ')' : '')));
+          const req = e.reqFailed.size ? 'FAIL ' + Array.from(e.reqFailed).join(',') + (e.errors.size ? ' (' + Array.from(e.errors).join('; ') + ')' : '') : (e.tested ? 'ok' : 'not tested');
+          lines.push(e.host + ' | ' + Array.from(e.roles).join(',') + ' | providers: ' + Array.from(e.providers).join(',') + (e.provProxy ? ' (useproxy)' : '') + ' | net: ' + net + ' | req: ' + req + ' | ips: ' + (Array.from(e.ips).join(',') || '-'));
+        });
+        return lines.join('\n');
+      }
+
+      async function hcCopy(text, okMsg) {
+        let done = false;
+        try {
+          if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); done = true; }
+        } catch (e) { }
+        if (!done) {
+          // страница по http в локальной сети: Clipboard API недоступен, копируем через временное поле
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.position = 'fixed'; ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          try { done = document.execCommand('copy'); } catch (e) { }
+          ta.remove();
+        }
+        if (done) showToast(okMsg, 'ok');
+        else { $('#hcRepBox').open = true; $('#hcRep').focus(); $('#hcRep').select(); showToast(tr('Не удалось скопировать автоматически: текст выделен ниже, нажмите Ctrl+C', 'Auto copy failed: the text below is selected, press Ctrl+C'), 'err'); }
+      }
+
+      $('#hcCopyDomains').addEventListener('click', () => {
+        const t = hcDomainsText();
+        if (!t) { showToast(tr('Список доменов пуст', 'Domain list is empty'), 'err'); return; }
+        hcCopy(t, tr('Домены скопированы', 'Domains copied'));
+      });
+      $('#hcCopyReport').addEventListener('click', () => hcCopy($('#hcRep').value, tr('Отчёт скопирован', 'Report copied')));
+      $('#hcDownload').addEventListener('click', () => {
+        const data = { time: new Date().toISOString(), samples: hc.samples, providers: hc.order.map(k => ({ key: k, name: hc.rows[k].name, status: hcStatusOf(hc.rows[k]), configured_hosts: hcProviderHosts(k), results: hc.rows[k].results })), domains: hcAggregateHosts().map(e => ({ host: e.host, roles: Array.from(e.roles), providers: Array.from(e.providers), request_failed: Array.from(e.reqFailed), errors: Array.from(e.errors), probe: e.probe, ips: Array.from(e.ips) })) };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'lampac-healthcheck-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.json';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      });
+
+      async function hcProbeAll() {
+        const hosts = hcAggregateHosts().map(e => e.host).filter(h => !(h in hc.probe));
+        if (!hosts.length) return;
+        // небольшие пачки в три потока: прогресс идёт плавно, таблица дополняется по мере ответов
+        const chunks = [];
+        for (let i = 0; i < hosts.length; i += 8) chunks.push(hosts.slice(i, i + 8));
+        const label = tr('Проверка доменов (DNS, IPv4, IPv6)', 'Probing domains (DNS, IPv4, IPv6)');
+        let done = 0;
+        let failed = false;
+        hcProgSet(label, 0, hosts.length);
+        const worker = async () => {
+          while (chunks.length && !hc.stop && !failed) {
+            const chunk = chunks.shift();
+            try {
+              const j = await hcJson('/adminpanel/api/healthcheck/probe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hosts: chunk }) });
+              (j.probe || []).forEach(p => { hc.probe[p.host] = p; });
+              if (typeof j.serverIpv6 === 'boolean') hc.serverIpv6 = j.serverIpv6;
+            } catch (e) {
+              failed = true;
+              showToast(tr('Проверка сети по доменам не удалась: ', 'Domain network probe failed: ') + (e.message || e), 'err');
+              return;
+            }
+            done += chunk.length;
+            hcProgSet(label, done, hosts.length);
+            hcRenderHosts();
+          }
+        };
+        await Promise.all([worker(), worker(), worker()]);
+      }
+
+      async function hcOpen() {
+        try {
+          if (!hc.loaded) await hcLoadSamples();
+          hcRenderSamples();
+        } catch (e) { showToast(e.message || String(e), 'err'); }
+        renderHealth();
+      }
+      $$('[data-panel="health"].tab').forEach(t => t.addEventListener('click', hcOpen));
 
       /* ── Boot ── */
       (async function boot() {
