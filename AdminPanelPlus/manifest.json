@@ -3,8 +3,10 @@
   "dynamic": true,
   "tree": [
     "AdminPanelPlusController.cs",
+    "AdminPanelPlusController.Extra.cs",
     "ConfigSectionGroups.cs",
     "HealthCheck.cs",
-    "ModInit.cs"
+    "ModInit.cs",
+    "SyncBackup.cs"
   ]
 }
