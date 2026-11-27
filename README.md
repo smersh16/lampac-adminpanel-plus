@@ -61,6 +61,17 @@ Lampac умеет сам подтягивать модули из репозит
 
 ## Разработка
 
+### Проверка компиляции C# на GitHub
+
+Ошибка компиляции модуля не даёт Lampac стартовать, а локально .NET может не быть. Поэтому на GitHub настроен workflow `.github/workflows/build.yml` (запускается на push в `main` и `live-providers`, на pull request и вручную). Он:
+
+1. проверяет синтаксис скрипта в `index.html` (`node --check`) и валидность `hints.json`, `modules.json`, `manifest.json`, `version.json`;
+2. забирает актуальное дерево `lampac-nextgen/lampac`, кладёт модуль в `Modules/AdminPanelPlus` и выполняет `dotnet build AdminPanelPlus.csproj -c Release`;
+3. на `main` после успешной сборки переводит ветку `stable` на проверенный коммит. Чтобы сервер брал только проверенный код, укажите в `module/repository.yaml` `branch: stable`.
+
+Правки C# сначала пушьте в отдельную ветку и смотрите результат во вкладке Actions. Версию панели меняйте одновременно в `PANEL_VERSION` (`index.html`) и в `version.json`: при несовпадении в шапке панели появляется значок ⚠.
+
+
 `AdminPanelPlus.csproj` нужен только для проверки сборки: положите папку в `Modules/` дерева Lampac и выполните `dotnet build Modules/AdminPanelPlus/AdminPanelPlus.csproj --nologo`. На сервере модуль компилируется из исходников по списку `tree` в `manifest.json`. Файлы `index.html`, `auth.html` и `hints.json` в список не входят, они читаются из папки модуля.
 
 ## Лицензия
