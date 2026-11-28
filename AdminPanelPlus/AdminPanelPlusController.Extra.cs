@@ -124,11 +124,6 @@ public partial class AdminPanelPlusController
     #endregion
 
     #region repository.yaml
-    const string SecretMask = "***KEEP***";
-    static readonly Regex SecretLine = new(
-        @"^(?<head>\s*(?:-\s+)?(?:token|pat|personal_access_token|auth_header|authorization|authorization_header)\s*:\s*)(?<val>\S.*?)(?<tail>\s*)$",
-        RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
     // как в ModuleRepository: mods/repository.yaml, если он есть, иначе module/repository.yaml
     static string RepoFile => System.IO.File.Exists(Path.Combine("mods", "repository.yaml"))
         ? Path.Combine("mods", "repository.yaml")
@@ -141,31 +136,17 @@ public partial class AdminPanelPlusController
         var file = RepoFile;
         var exists = System.IO.File.Exists(file);
         var text = exists ? System.IO.File.ReadAllText(file, Encoding.UTF8) : "";
-        var secrets = 0;
-
-        var lines = text.Replace("\r\n", "\n").Split('\n');
-        for (var i = 0; i < lines.Length; i++)
-        {
-            var m = SecretLine.Match(lines[i]);
-            if (m.Success)
-            {
-                secrets++;
-                lines[i] = m.Groups["head"].Value + SecretMask + m.Groups["tail"].Value;
-            }
-        }
 
         var o = new JObject
         {
             ["file"] = file.Replace('\\', '/'),
             ["exists"] = exists,
-            ["text"] = string.Join("\n", lines),
-            ["secrets"] = secrets,
-            ["mask"] = SecretMask
+            ["text"] = text
         };
         return Content(o.ToString(Formatting.None), "application/json; charset=utf-8");
     }
 
-    // Тело: {"text":"..."}. Значения токенов ***KEEP*** подставляются из текущего файла по порядку.
+    // Тело: {"text":"..."}. Файл сохраняется как есть (токены не скрываются).
     [HttpPost]
     [Route("/adminpanel/api/repository")]
     public async Task<IActionResult> RepositorySave()
@@ -184,31 +165,7 @@ public partial class AdminPanelPlusController
             return AdminJsonError(400, "text is required");
 
         var file = RepoFile;
-        var original = System.IO.File.Exists(file)
-            ? System.IO.File.ReadAllText(file, Encoding.UTF8).Replace("\r\n", "\n").Split('\n')
-            : Array.Empty<string>();
-        var secrets = original.Select(l => SecretLine.Match(l)).Where(m => m.Success).Select(m => m.Groups["val"].Value).ToList();
-
-        var lines = text.Replace("\r\n", "\n").Split('\n');
-        var idx = 0;
-        for (var i = 0; i < lines.Length; i++)
-        {
-            var m = SecretLine.Match(lines[i]);
-            if (!m.Success)
-                continue;
-
-            if (m.Groups["val"].Value == SecretMask)
-            {
-                if (idx >= secrets.Count)
-                    return AdminJsonError(400, "token placeholder has no original value", "line " + (i + 1));
-
-                lines[i] = m.Groups["head"].Value + secrets[idx] + m.Groups["tail"].Value;
-            }
-
-            idx++;
-        }
-
-        var final = string.Join("\n", lines);
+        var final = text.Replace("\r\n", "\n");
 
         try
         {

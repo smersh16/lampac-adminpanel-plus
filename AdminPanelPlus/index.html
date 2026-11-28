@@ -2136,7 +2136,7 @@
           <button type="button" class="tab" data-panel="backup" role="tab">
             <svg style="width:12px;height:12px;margin-right:4px;vertical-align:-1px" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" stroke-width="2" stroke-linecap="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-            Копии
+            Backup
           </button>
           <button type="button" class="tab" data-panel="users" role="tab">
             <svg style="width:12px;height:12px;margin-right:4px;vertical-align:-1px" viewBox="0 0 24 24" fill="none"
@@ -2161,7 +2161,6 @@
             </svg>
           </button>
           <button type="button" class="btn btn-ghost btn-sm" id="langBtn" title="Язык подсказок / Hints language">RU</button>
-          <button type="button" class="btn btn-ghost btn-sm" id="backupsBtn" title="Резервные копии init.conf и users.json / Backups">Бэкапы</button>
           <button type="button" class="btn btn-ghost btn-sm" id="reloadBtn" title="Перезагрузить (Alt+R)">
             <svg style="width:13px;height:13px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
               stroke-linecap="round">
@@ -2191,7 +2190,7 @@
         <button type="button" class="tab" data-panel="modules">Модули</button>
         <button type="button" class="tab" data-panel="transcode">Транскодинг</button>
         <button type="button" class="tab" data-panel="simple">Редактор</button>
-        <button type="button" class="tab" data-panel="backup">Копии</button>
+        <button type="button" class="tab" data-panel="backup">Backup</button>
         <button type="button" class="tab" data-panel="users">Пользователи</button>
         <button type="button" class="tab" data-panel="advanced">Для опытных</button>
       </div>
@@ -2384,14 +2383,10 @@
             </div>
           </details>
           <details class="hc-set" open>
-            <summary id="rpSum"></summary>
+            <summary id="cbSum"></summary>
             <div class="hc-set-body">
-              <p class="pv-note" id="rpNote"></p>
-              <textarea class="hc-rep" id="rpText" spellcheck="false" style="min-height:260px"></textarea>
-              <div class="hc-bar" style="margin-top:var(--sp-3)">
-                <button type="button" class="btn btn-primary btn-sm" id="rpSave"></button>
-                <button type="button" class="btn btn-ghost btn-sm" id="rpReload"></button>
-              </div>
+              <p class="pv-note" id="cbNote"></p>
+              <div class="pv-table" id="cbList"></div>
             </div>
           </details>
         </div>
@@ -2413,6 +2408,17 @@
             </div>
           </div>
           <div id="modMount"></div>
+          <details class="hc-set" open>
+            <summary id="rpSum"></summary>
+            <div class="hc-set-body">
+              <p class="pv-note" id="rpNote"></p>
+              <textarea class="hc-rep" id="rpText" spellcheck="false" style="min-height:260px"></textarea>
+              <div class="hc-bar" style="margin-top:var(--sp-3)">
+                <button type="button" class="btn btn-primary btn-sm" id="rpSave"></button>
+                <button type="button" class="btn btn-ghost btn-sm" id="rpReload"></button>
+              </div>
+            </div>
+          </details>
         </div>
 
         <div class="panel" id="panel-transcode" data-panel="transcode">
@@ -2601,17 +2607,6 @@
     </div>
   </div>
 
-  <!-- BACKUPS DIALOG -->
-  <div class="dialog-overlay hidden" id="backupsDialog">
-    <div class="dialog dialog-wide">
-      <h3>Резервные копии / Backups</h3>
-      <div id="backupsList"></div>
-      <div class="dialog-actions">
-        <button type="button" class="btn btn-ghost btn-sm" id="backupsClose">Закрыть / Close</button>
-      </div>
-    </div>
-  </div>
-
   <!-- CONFIRM DIALOG -->
   <div class="dialog-overlay hidden" id="confirmDialog">
     <div class="dialog">
@@ -2748,6 +2743,7 @@
         const lay = $('.layout');
         if (lay) lay.classList.toggle('no-side', id === 'overview' || id === 'users' || id === 'providers' || id === 'health' || id === 'modules' || id === 'transcode' || id === 'backup');
         if (id === 'backup') loadBackupPanel();
+        if (id === 'modules') { bkTexts(); loadRepository(); }
         updateSaveBtn();
       }
 
@@ -4387,21 +4383,21 @@
       function fmtSize(n) { return n < 1024 ? n + ' B' : (n / 1024).toFixed(1) + ' KB'; }
 
       /* ── Копии: Sync/TimeCode и repository.yaml ── */
-      let rpMask = '***KEEP***';
-
       function bkFmtDate(iso) {
         try { return new Date(iso).toLocaleString('ru-RU'); } catch (e) { return iso; }
       }
 
       function bkTexts() {
-        $('#bkTitle').textContent = tr('Копии и repository.yaml', 'Backups and repository.yaml');
-        $('#bkIntro').textContent = tr('Резервные копии истории просмотров и позиций (Sync, TimeCode) и редактор списка внешних модулей.', 'Backups of watch history and positions (Sync, TimeCode) and the external modules list editor.');
+        $('#bkTitle').textContent = tr('Резервные копии', 'Backups');
+        $('#bkIntro').textContent = tr('Копии истории просмотров и позиций (Sync, TimeCode) и копии конфигов: init.conf, users.json, repository.yaml.', 'Backups of watch history and positions (Sync, TimeCode) and of configs: init.conf, users.json, repository.yaml.');
         $('#bkSyncSum').textContent = tr('История просмотров (Sync) и позиции (TimeCode)', 'Watch history (Sync) and positions (TimeCode)');
         $('#bkSyncNote').textContent = tr('Копия делается безопасно при работающем сервере (SQLite VACUUM INTO). Автокопия — раз в сутки, хранится 5 последних; ручные — 10 последних.', 'Copies are safe while the server runs (SQLite VACUUM INTO). Auto copy: once a day, last 5 kept; manual: last 10.');
         $('#bkCreate').textContent = tr('Сделать копию сейчас', 'Back up now');
         $('#bkAutoLbl').textContent = tr('Автокопия раз в сутки (5 копий)', 'Daily auto backup (5 copies)');
+        $('#cbSum').textContent = tr('Конфигурация: init.conf, users.json, repository.yaml', 'Config: init.conf, users.json, repository.yaml');
+        $('#cbNote').textContent = tr('Копии создаются автоматически перед каждой записью этих файлов из панели (хранится 30 последних каждого). Восстановление заменяет файл; текущая версия перед этим тоже сохраняется.', 'Copies are made automatically before each save of these files from the panel (last 30 of each kept). Restore replaces the file; the current version is saved first.');
         $('#rpSum').textContent = 'repository.yaml';
-        $('#rpNote').textContent = tr('Список внешних репозиториев модулей. Читается при запуске контейнера: после сохранения нужен перезапуск. Значения token/auth_header скрыты как ' + rpMask + ' — оставьте их как есть, чтобы сохранить текущие. Перед записью делается копия (кнопка «Бэкапы» вверху).', 'External module repositories. Read at container start: restart required after saving. token/auth_header values are hidden as ' + rpMask + ' — keep them to preserve the current ones. A copy is made before saving (Backups button above).');
+        $('#rpNote').textContent = tr('Список внешних репозиториев модулей. Читается при запуске контейнера: после сохранения нужен перезапуск. Токены показаны как есть. Перед записью делается копия (вкладка Backup).', 'External module repositories. Read at container start: restart required after saving. Tokens are shown as is. A copy is made before saving (Backup tab).');
         $('#rpSave').textContent = tr('Сохранить repository.yaml', 'Save repository.yaml');
         $('#rpReload').textContent = tr('Перечитать', 'Reload');
       }
@@ -4436,7 +4432,7 @@
         } catch (e) {
           showToast(tr('Не удалось загрузить список копий', 'Failed to load backups'), 'err');
         }
-        loadRepository();
+        renderConfigBackups();
       }
 
       function bkShowCmd(name) {
@@ -4460,7 +4456,6 @@
         try {
           const r = await api('/adminpanel/api/repository');
           const d = await r.json();
-          rpMask = d.mask || rpMask;
           $('#rpText').value = d.text || '';
           if (!d.exists) showToast(tr('repository.yaml не найден — сохранение создаст файл ' + d.file, 'repository.yaml not found — saving will create ' + d.file), 'warn');
         } catch (e) {
@@ -4492,44 +4487,41 @@
         } else showToast((d.error || 'error') + (d.detail ? ': ' + d.detail : ''), 'err');
       });
 
-      async function openBackups() {
+      function openBackups() { switchPanel('backup'); }
+
+      async function renderConfigBackups() {
         const res = await api('/adminpanel/api/backups');
         if (!res.ok) {
           showToast(await errText(res), 'err');
           return;
         }
         const list = await res.json();
-        const box = $('#backupsList');
+        const box = $('#cbList');
         box.innerHTML = '';
         if (!list.length) {
-          const p = document.createElement('p');
-          p.textContent = tr('Копий пока нет. Они создаются автоматически перед каждой записью init.conf и users.json из панели.',
-            'No backups yet. They are created automatically before every init.conf and users.json write made from the panel.');
-          box.appendChild(p);
+          box.innerHTML = '<p class="pv-note">' + esc(tr('Копий пока нет.', 'No backups yet.')) + '</p>';
         }
         list.forEach(b => {
           const row = document.createElement('div');
-          row.className = 'backup-row';
-          const info = document.createElement('span');
-          info.textContent = b.file + ' · ' + new Date(b.utc).toLocaleString() + ' · ' + fmtSize(b.size);
+          row.className = 'hc-bar';
+          row.innerHTML = '<code>' + esc(b.file) + '</code><span class="pv-note" style="margin:0">' + esc(new Date(b.utc).toLocaleString() + ' · ' + fmtSize(b.size)) + '</span>';
           const btn = document.createElement('button');
           btn.type = 'button';
           btn.className = 'btn btn-ghost btn-sm';
           btn.textContent = tr('Восстановить', 'Restore');
           btn.addEventListener('click', () => restoreBackup(b));
-          row.appendChild(info);
           row.appendChild(btn);
           box.appendChild(row);
         });
-        $('#backupsDialog').classList.remove('hidden');
       }
 
       async function restoreBackup(b) {
         const when = new Date(b.utc).toLocaleString();
+        const yaml = b.file === 'repository.yaml';
         const ok = await showConfirm(
           tr('Восстановить ' + b.file + '?', 'Restore ' + b.file + '?'),
-          tr('Файл будет заменён копией от ' + when + '. Текущая версия перед этим тоже сохранится в бэкапах.',
-            'The file will be replaced with the copy from ' + when + '. The current version is kept in backups first.'));
+          tr('Файл будет заменён копией от ' + when + '. Текущая версия перед этим тоже сохранится в бэкапах.' + (yaml ? ' Для repository.yaml нужен перезапуск контейнера.' : ''),
+            'The file will be replaced with the copy from ' + when + '. The current version is kept in backups first.' + (yaml ? ' repository.yaml needs a container restart.' : '')));
         if (!ok) return;
         const res = await api('/adminpanel/api/backups/restore', {
           method: 'POST',
@@ -4540,13 +4532,10 @@
           showToast(await errText(res), 'err');
           return;
         }
-        $('#backupsDialog').classList.add('hidden');
         showToast(b.file + ' ' + tr('восстановлен', 'restored'), 'ok');
-        await refresh();
+        if (!yaml) await refresh();
+        renderConfigBackups();
       }
-
-      $('#backupsBtn').addEventListener('click', openBackups);
-      $('#backupsClose').addEventListener('click', () => $('#backupsDialog').classList.add('hidden'));
 
       /* ── Plus 2: обзор, служебные ключи, поиск по описаниям ── */
       const TECH_GROUPS = ['runtime'];
@@ -6078,7 +6067,6 @@
         }
         // Escape — close dialogs / sidebar
         if (e.key === 'Escape') {
-          $('#backupsDialog').classList.add('hidden');
           $('#confirmDialog').classList.add('hidden');
           $('#sidebar').classList.remove('open');
         }
