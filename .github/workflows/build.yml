@@ -31,6 +31,20 @@ jobs:
           node --check /tmp/panel.js
           node -e "for (const f of ['hints.json','modules.json','manifest.json','version.json']) JSON.parse(require('fs').readFileSync('AdminPanelPlus/'+f,'utf8'))"
 
+      - name: Сверка tree манифеста со списком .cs
+        working-directory: module
+        run: |
+          node -e "
+          const fs=require('fs');
+          const tree=JSON.parse(fs.readFileSync('AdminPanelPlus/manifest.json','utf8')).tree||[];
+          const files=fs.readdirSync('AdminPanelPlus').filter(f=>f.endsWith('.cs'));
+          const missing=files.filter(f=>!tree.includes(f));
+          const extra=tree.filter(f=>!files.includes(f));
+          if(missing.length) console.error('Нет в tree (не скомпилируются на сервере): '+missing.join(', '));
+          if(extra.length) console.error('В tree есть, но файла нет: '+extra.join(', '));
+          process.exit(missing.length||extra.length?1:0);
+          "
+
       - uses: actions/checkout@v4
         with:
           repository: lampac-nextgen/lampac
